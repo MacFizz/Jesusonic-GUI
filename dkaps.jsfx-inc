@@ -1,0 +1,258 @@
+@init
+// Copyright 2006, Thomas Scott Stillwell
+function init_co1175()(
+  this.attime=0.010;
+  this.reltime=0.100;
+  this.ratio=0;
+  this.cratio=0;
+  this.rundb=0;
+  this.overdb=0;
+  this.ratatcoef = exp(-1/(0.00001 * srate));
+  this.ratrelcoef = exp(-1/(0.5 * srate));
+  this.atcoef=exp(-1/(this.attime * srate));
+  this.relcoef=exp(-1/(this.reltime * srate));
+  this.mix=1;
+  this.gr_meter=1;
+  this.gr_meter_decay = exp(1/(1*srate));
+);
+
+function set_co1175(treshold rat gain attack release mix)
+(
+  this.thresh = treshold;
+  this.threshv = exp(this.thresh * db2log);
+  this.ratio = (rat==0 ? 4 : (rat==1 ? 8 : (rat == 2 ? 12 : (rat == 3 ? 20 : 20 ))));
+  rat == 4 ? (this.allin=1; this.cratio=20;) : (this.allin=0; this.cratio = this.ratio;);
+  this.cthresh = (this.softknee ? (this.thresh -3) : this.thresh);
+  this.cthreshv = exp(this.cthresh * db2log);
+  this.makeup = gain;
+  this.makeupv = exp((this.makeup+this.autogain) * db2log);
+  this.attime = attack / 1000000;
+  this.reltime = release / 1000;
+  this.atcoef=exp(-1/(this.attime * srate));
+  this.relcoef=exp(-1/(this.reltime * srate));
+  this.mix=mix/100;
+);
+
+function do_co1175(inL inR)(
+  this.ospl0 = inL;
+  this.ospl1 = inR;
+  this.aspl0 = abs(inL);
+  this.aspl1 = abs(inR);
+  this.maxspl = max(this.aspl0, this.aspl1);
+  this.maxspl = this.maxspl * this.maxspl;
+  this.runave = this.maxspl + this.rmscoef * (this.runave -  this.maxspl);
+  this.det = sqrt(max(0,this.runave));
+
+  this.overdb = 2.08136898 * log(this.det/this.cthreshv) * log2db;
+  this.overdb = max(0,this.overdb);
+
+  this.overdb - this.rundb > 5 ? (this.averatio = 4;);
+
+  this.overdb > this.rundb ? (
+    this.rundb = this.overdb + this.atcoef * (this.rundb - this.overdb);
+    this.runratio = this.averatio + this.ratatcoef * (this.runratio - this.averatio);
+  ) : (
+    this.rundb = this.overdb + this.relcoef * (this.rundb - this.overdb);
+    this.runratio = this.averatio + this.ratrelcoef * (this.runratio - this.averatio);
+    );
+  this.overdb = this.rundb;
+  this.averatio = this.runratio;
+
+  this.allin ? ( this.cratio = 12 + this.averatio; ) : ( this.cratio = this.ratio; );
+
+  this.gr = -this.overdb * (this.cratio-1)/this.cratio;
+  this.grv = exp(this.gr * db2log);
+
+  this.runmax = this.maxover + this.relcoef * (this.runmax - this.maxover);  // highest peak for setting att/rel decays in reltime
+  this.maxover = this.runmax;
+
+  this.grv < this.gr_meter ? this.gr_meter=this.grv : (
+    this.gr_meter*=this.gr_meter_decay;
+    this.gr_meter>1 ? this.gr_meter=1;
+    );
+
+  this.co1175_outL = inL * this.grv * this.makeupv * this.mix;
+  this.co1175_outR = inR * this.grv * this.makeupv * this.mix;
+
+  this.co1175_outL += this.ospl0 * (1-this.mix);
+  this.co1175_outR += this.ospl1 * (1-this.mix);
+);
+
+// Copyright 2006, Thomas Scott Stillwell
+function set_bbmj(ptresh ntresh pnl nnl pknee nknee moda modb)(
+   this.pt=ptresh;
+   this.nt=ntresh;
+   this.pl=pnl-1;
+   this.nl=nnl-1;
+   this.mixa=moda/100;
+   this.mixb=modb/100;
+   this.drivea=1;
+   this.mixa1 = 1 - this.mixa;
+   this.drivea1 = 1 / (1 - (this.drivea / 2));
+   this.drivea2 = this.drive / 2;
+   this.mixb1 = 1 - this.mixb;
+   this.pts=pknee;
+   this.nts=nknee;
+   this.ptt=this.pt - this.pts;
+   this.ntt=this.nt - this.nts;
+
+   this.ptsv=exp(this.ptt * db2log);
+   this.ntsv=-exp(this.ntt * db2log);
+);
+
+function do_bbmj(inL inR)(
+  this.bbmj_outL=inL;
+  this.bbmj_outR=inR;
+  this.mixa > 0 ? (
+    this.wet0 = this.drivea1 * this.bbmj_outL * (1 - abs(this.bbmj_outL * this.drivea2));
+    this.wet1 = this.drivea1 * this.bbmj_outR * (1 - abs(this.bbmj_outR * this.drivea2));
+    bbmj_outL = this.mixa1 * this.bbmj_outL + (this.mixa) * this.wet0;
+    bbmj_outR = this.mixa1 * this.bbmj_outR + (this.mixa) * this.wet1;
+  );
+
+  this.mixb > 0 ? (
+    this.wet0 = sin(this.bbmj_outL * halfpi);
+    this.wet1 = sin(this.bbmj_outR * halfpi);
+    this.bbmj_outL = this.mixb1 * this.bbmj_outL + (this.mixb) * this.wet0;
+    this.bbmj_outR = this.mixb1 * this.bbmj_outR + (this.mixb) * this.wet1;
+  );
+
+  this.db0 = log(abs(this.bbmj_outL)) * log2db;
+  this.db1 = log(abs(this.bbmj_outR)) * log2db;
+
+  this.bbmj_outL>this.ptsv ? (
+    this.diff=max(min((this.db0 - this.ptt),0),this.pts);
+    this.pts == 0 ? this.mult = 0 : this.mult=this.diff/this.pts;
+    this.bbmj_outL = this.ptsv + ((this.bbmj_outL - this.ptsv) / (1 + (this.pl * this.mult)));
+  );
+  this.bbmj_outL<this.ntsv ? (
+    this.diff=max(min((this.db0 - this.ntt),0),this.nts);
+    this.nts == 0 ? this.mult = 0 : this.mult=this.diff/this.nts;
+    this.bbmj_outL = this.ntsv + ((this.bbmj_outL - this.ntsv) / (1 + (this.nl * this.mult)));
+  );
+  this.bbmj_outR>this.ptsv ? (
+    this.diff=max(min((this.db1 - this.ptt),0),this.pts);
+    this.pts == 0 ? this.mult = 0 : this.mult=this.diff/this.pts;
+    this.bbmj_outR = this.ptsv + ((this.bbmj_outR - this.ptsv) / (1 + (this.pl * this.mult)));
+  );
+  this.bbmj_outR<this.ntsv ? (
+    this.diff=max(min((this.db1 - this.ntt),0),this.nts);
+    this.nts == 0 ? this.mult = 0 : this.mult=this.diff/this.nts;
+    this.bbmj_outR = this.ntsv + ((this.bbmj_outR - this.ntsv) / (1 + (this.nl * this.mult)));
+  );
+);
+
+//author: LOSER
+function set_chdly(dL dR)(
+  dL >= 0 && dR >= 0 ? (
+    this.buflL = floor(dL / 1000 * srate) ;
+    this.buflR = floor(dR / 1000 * srate) + this.buflL+1;
+    ):(
+    dL <= dR ?  (
+      this.buflL = 0 ;
+      this.buflR = floor((dR-dL) / 1000 * srate) + this.buflL+1;
+      ):(
+      this.buflL = floor((dL-dR) / 1000 * srate) ;
+      this.buflR = this.buflL+1;
+      );
+  pdc_delay = floor(min( -min(dL,dR)/1000 * srate,500000));
+  pdc_bot_ch=0; pdc_top_ch=2;
+  );
+);
+
+function do_chdly(inL inR)(
+  this.bufLpos[0] = inL ;
+  this.bufLpos = this.bufLpos + 1 ;
+  this.bufLpos >= this.buflL ? this.bufLpos = 0;
+
+  this.bufRpos[0] = inR ;
+  this.bufRpos = this.bufRpos + 1 ;
+  this.bufRpos >= this.buflR ? this.bufRpos = this.buflL+1;
+
+  this.chdly_outL = this.bufLpos[0] ;
+  this.chdly_outR = this.bufRpos[0] ;
+);
+
+//author: LOSER
+function init_tc()(
+  this.b1Env1 = -exp(-30 / srate );
+  this.a0Env1 = 1.0 + this.b1Env1;
+  this.b1Env2 = -exp(-1250 / srate );
+  this.a0Env2 = 1.0 + this.b1Env2;
+  this.b1Env3 = -exp(-3 / srate );
+  this.a0Env3 = 1.0 + this.b1Env3;
+);
+
+function set_tc(att sus vol)(
+  this.attack=att/100;
+  this.sustain=sus/50;
+  this.vol = 2^(vol/6);
+);
+
+function do_tc(inL inR)(
+  this.tc_outL=inL;
+  this.tc_outR=inR;
+  this.maxSpls = max(abs(inL),abs(inR));
+  this.env1 = sqrt(this.tmpEnv1 = this.a0Env1*this.maxSpls - this.b1Env1*this.tmpEnv1);
+  this.env2 = sqrt(this.tmpEnv2 = this.a0Env2*this.maxSpls - this.b1Env2*this.tmpEnv2);
+  this.env3 = sqrt(this.tmpEnv3 = this.a0Env3*this.maxSpls - this.b1Env3*this.tmpEnv3);
+
+  this.gain = exp(log(max(this.env2/this.env1,1))*this.attack) * exp( log( max(this.env3/this.env1,1))*this.sustain);
+
+  this.tc_outL *= (this.gain *= this.vol);
+  this.tc_outR *= this.gain;
+);
+
+//author: LOSER
+function set_steh(wl cross wh)(
+  this.widthLP = wl / 200;
+  this.width = wh / 200;
+
+  this.freq = min(cross,srate);
+  this.x = exp(-2.0*$pi*this.freq/srate);
+  this.a0 = 1.0-this.x;
+  this.b1 = -this.x;
+);
+
+function do_steh(inL inR)(
+  this.s0 = inL;
+  this.s1 = inR;
+  this.steh_outL=inL;
+  this.steh_outR=inR;
+
+  this.steh_outL = (this.tmpl = this.a0*this.steh_outL - this.b1*this.tmpl + cDenorm);
+  this.steh_outR = (this.tmpr = this.a0*this.steh_outR - this.b1*this.tmpr + cDenorm);
+
+  this.s0 -= this.steh_outL;
+  this.s1 -= this.steh_outR;
+
+  this.mono = (this.s0 + this.s1)/2;
+  this.stereo = (this.s0 - this.s1);
+  this.s0 = (this.mono + this.stereo * this.width) / max(this.width,1);
+  this.s1 = (this.mono - this.stereo * this.width) / max(this.width,1);
+
+  this.monoLP = (this.steh_outL + this.steh_outR)/2;
+  this.stereoLP = (this.steh_outL - this.steh_outR);
+  this.steh_outL = (this.monoLP + this.stereoLP * this.widthLP) / max(this.widthLP,1);
+  this.steh_outR = (this.monoLP - this.stereoLP * this.widthLP) / max(this.widthLP,1);
+
+  this.steh_outL += this.s0;
+  this.steh_outR += this.s1;
+);
+
+//author: LOSER
+function set_sat(satu)(
+  this.satu=satu;
+  this.foo=satu/200*$pi;
+  this.bar = sin(satu/200*$pi);
+);
+
+function do_sat(inL inR)(
+  this.satu >0 ? (
+    this.sat_outL = min(max( sin(max(min(inL,1),-1)*this.foo)/this.bar ,-1) ,1);
+    this.sat_outR = min(max( sin(max(min(inR,1),-1)*this.foo)/this.bar ,-1) ,1);
+  ):(
+    this.sat_outL=inL;
+    this.sat_outR=inR;
+  );
+);

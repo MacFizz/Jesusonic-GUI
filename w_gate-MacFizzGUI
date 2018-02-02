@@ -1,0 +1,137 @@
+desc:Witti's Gate - MacFizz
+//tags: noise gate
+//author: Witti/MacFizz
+
+import swipe.jsfx-inc
+import macfizz-toolbox.jsfx-inc
+import macfizz-gui.jsfx-inc
+
+//gate
+slider16:-50<-90,0>-Threshold (dB)
+slider17:10<1,150,1>-Attack Time (ms)
+slider18:50<1,1000>-Release Time (ms)
+slider19:50<10,100>-Env decay (ms)
+slider58:1<0,1,1{Off,On}>-Gate
+
+
+@init
+
+  //gate
+  gt.gain = 1;
+  gt.env = 0;
+  //Gate
+  knob16.init_knob(16,"Treshold","dB",-90,0,1,.5,.5,1);
+  knob17.init_knob(17,"Attack","ms",1,150,1,.6,.6,.6);
+  knob18.init_knob(18,"Release","ms",1,1000,1,.6,.6,.6);
+  knob19.init_knob(19,"Env decay","ms",10,100,1,.6,.6,.6);
+
+@slider
+  s58.checked = slider58;
+
+@sample
+spl0 || spl1 != 0 ? playing=1 : playing=0;
+
+spl0 == spl1 ? mono=1 : mono=0;
+
+playing ? (
+  gate=slider58;
+  //gate
+  gate ? (
+    gt.gt_set(slider16,slider17,slider18,slider19);
+    gt.gt_do(spl0,spl1);
+    spl0 = gt.outl;
+    spl1 = gt.outr;
+  );
+);
+
+@gfx 280 215
+gfx_w=430;
+gfx_h=215;
+gfx_mode=0;
+
+SWIPE(gfx_w, gfx_h) ?
+(
+  #msg="";
+  #nom_fx =" | License LGPL / (C) 2018 Joanny Krafft";
+  #ordre="Gate";
+  playing == 1 ? (
+    strcat(#msg,"Processing | ");
+    mono == 1 ? (#mode="Mono | "):(#mode="Stereo | ");
+  );
+  strcat(#msg,#mode);
+  strcat(#msg,#ordre);
+  strcat(#msg,#nom_fx);
+  _effect.EffectBasic("Witti's Gate",#msg);
+
+ w = 97;
+ h = 110;
+ hy = 70;
+x1= x = 20;//(gfx_w - w * 5) * 0.5 -60;
+ys= y = 60;
+
+!bcred.checked & !binfos.checked ? main=1;
+main ? (
+  bcred.checked=binfos.checked=0;
+
+//Gate
+ GfxDrawRect3D(x,y-15,x+4*w,y+h,1);
+ gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 19; gfx_y = y -12; //gfx_drawstr("Gate");
+ s58.titleR=1;
+ s58.titleA=.1;
+ slider58 = s58.draw_chkbox(x+4,y-10,10,"Gate",1);x +=0;
+ knob16.draw_pot(x,y,w,slider16);
+ knob16.process_knob();
+ x += w;
+ knob17.draw_pot(x,y,w,slider17);
+ knob17.process_knob();
+ x += w;
+ knob18.draw_pot(x,y,w,slider18);
+ knob18.process_knob();
+ x += w;
+ knob19.draw_pot(x,y,w,slider19);
+ knob19.process_knob();
+ x += w+5;
+  //LEDs
+ draw_led(x1+w*3, y-5,5);
+ draw_led(x1+w*3+20, y-5,5);
+ draw_led(x1+w*3+40, y-5,5);
+  playing==1 ? (
+    gt.gain>=.99 && slider58==1 ? (
+       gfx_g=1;
+       gfx_b=gfx_r=0;
+       gfx_circle(x1+w*3, y-5,3,1,1);
+     );
+    gt.gain>0.1 && gt.gain<.99 && slider58==1 ? (
+       gfx_r=1;
+       gfx_b=0;
+       gfx_g=1;
+       gfx_circle(x1+w*3+20, y-5,3,1,1);
+     );
+    gt.gain<=.1 && slider58==1 ? (
+      gfx_r=1;
+      gfx_b=gfx_g=0;
+      gfx_circle(x1+w*3+40, y-5,3,1,1);
+    );
+  );
+);
+ _effect.EffectDone();
+ );
+
+ function button(state x1 y1 x2 y2 r g b)
+   (
+   gfx_x = x1;
+   gfx_y = y1;
+   gfx_r =r;gfx_b=b;gfx_g=g;
+   (mouse_x > x1 && mouse_x < x1+x2 && mouse_y > y1 && mouse_y < y1+y2) ? (
+     gfx_r =r+0.05;gfx_b=b+0.05;gfx_g=g+0.05;
+     mouse_cap == 1 ? (
+       state = 1;
+       gfx_r =r+0.2;gfx_b=b+0.2;gfx_g=g+0.2;
+       );
+     ) : (
+     state = 0;
+   );
+   gfx_rectto(gfx_x+x2,gfx_y+y2);
+   state;
+   );
+//   button_clicked = button(state,20,20,40,20,0.6,0.6,0.6);

@@ -1,0 +1,357 @@
+@init
+//By Joanny Krafft
+function draw_led(x,y,size)(
+  gfx_r=gfx_b=gfx_g=0;
+  gfx_circle(x, y,size,1,1);
+  gfx_r=gfx_b=gfx_g=.8;
+  gfx_a=.8;
+  gfx_arc(x, y,size-(size/5),1,4,1);
+  gfx_a=1;
+);
+
+function draw_pot(x,y,w,value) local (id,val_min,val_max,knob_type,r,g,b,cadre,cadre_r,cadre_g,cadre_b,bias,s,unit,label,prec)
+(
+  this.r =="" ? this.r=.5;
+  this.g =="" ? this.g=.5;
+  this.b =="" ? this.b=.5;
+  value == "" ? (vle_space=0):(vle_space=10);
+  this.label == "" ? (lbl_space=0):(lbl_space=0);
+  this.rw=(w-20)/10;
+  this.x1=x+this.rw/2;
+  this.y1=y+this.rw/2;
+  this.ra =  (w-this.rw)/4  ;
+  bdr_space=floor(this.rw*2);
+  this.cadre>0 ? (
+    gfx_r=this.cadre_r ? this.cadre_r : .9;
+    gfx_b=this.cadre_b ? this.cadre_b : .9;
+    gfx_g=this.cadre_g ? this.cadre_g : .9;
+    gfx_a=.2;
+    gfx_rect(x,y,w,w+this.rw+lbl_space);
+  );
+  this.center_x=this.x1+w/2;
+  this.center_y=this.y1+w/2+this.rw+lbl_space;
+  this.big_c_r=r;
+
+  //shadow
+  gfx_r = gfx_g = gfx_b = 0; gfx_a=.2;
+  this.offset=0;
+  gfx_circle(this.center_x + 3+this.offset, this.center_y + 2+this.offset,this.ra+this.offset, 1);
+  gfx_x=this.center_x-3-this.offset*2-this.ra;
+  gfx_y=this.center_y-2-this.ra-this.offset*2;
+  gfx_blurto(this.center_x+3+this.ra+this.offset,this.center_y+2+this.ra+this.offset);
+  gfx_r = gfx_g = gfx_b = 0; gfx_a=.15;
+  this.offset=1;
+  gfx_circle(this.center_x + 3+this.offset, this.center_y + 2+this.offset,this.ra+this.offset, 1);
+  gfx_x=this.center_x-3-this.offset*2-this.ra;
+  gfx_y=this.center_y-2-this.ra-this.offset*2;
+  gfx_blurto(this.center_x+3+this.ra+this.offset,this.center_y+2+this.ra+this.offset);
+  gfx_r = gfx_g = gfx_b = 0; gfx_a=.10;
+  this.offset=2;
+  gfx_circle(this.center_x + 3+this.offset, this.center_y + 2+this.offset,this.ra+this.offset, 1);
+  gfx_x=this.center_x-3-this.offset*2-this.ra;
+  gfx_y=this.center_y-2-this.ra-this.offset*2;
+  gfx_blurto(this.center_x+3+this.ra+this.offset,this.center_y+2+this.ra+this.offset);
+  gfx_r = gfx_g = gfx_b = 0; gfx_a=.05;
+  this.offset=3;
+  gfx_circle(this.center_x + 3+this.offset, this.center_y + 2+this.offset,this.ra+this.offset, 1);
+  gfx_x=this.center_x-3-this.offset*2-this.ra;
+  gfx_y=this.center_y-2-this.ra-this.offset*2;
+  gfx_blurto(this.center_x+3+this.ra+this.offset,this.center_y+2+this.ra+this.offset);
+
+  //gfx_r = gfx_g = gfx_b = 0; gfx_a=.2;
+  //gfx_circle(this.center_x + 3, this.center_y + 2,this.ra, 1);
+
+  //background
+  gfx_r = this.r*.7;  gfx_g = this.g*.7;  gfx_b = this.b*.7;   gfx_a = .8;
+  gfx_circle(this.center_x, this.center_y, this.ra , 1);
+
+  //Center
+  gfx_r = this.r;  gfx_g = this.g;  gfx_b = this.b;
+  gfx_circle(this.center_x, this.center_y, this.ra * 0.73, 1);
+  gfx_x=this.center_x-this.ra-1;
+  gfx_y=this.center_y-this.ra-1;
+  gfx_blurto(this.center_x+1+this.ra,this.center_y+1+this.ra);
+
+  //Contour
+  gfx_r = gfx_g = gfx_b = 0; gfx_a = 1.0;
+  gfx_circle(this.center_x, this.center_y, this.ra+.6, 0);
+
+  gfx_r=gfx_b=gfx_g=0;
+  this.xs=x+this.rw/2;
+  this.ys=(this.center_y-w/2);
+  gfx_setfont(3);
+  this.label ? (
+    gfx_a = .15;
+    label_size=strlen(this.label);
+    GfxDrawStr(this.xs, this.ys, this.xs+w+2, this.ys+10+2, this.label);
+    gfx_x=this.xs;
+    gfx_y=this.ys;
+    gfx_blurto(this.xs+label_size,this.ys+20);
+    gfx_a = .07;
+    label_size=strlen(this.label);
+    GfxDrawStr(this.xs, this.ys, this.xs+w+3, this.ys+10+3, this.label);
+    gfx_x=this.xs;
+    gfx_y=this.ys;
+    gfx_blurto(this.xs+label_size,this.ys+20);
+    gfx_a = .8;
+    label_size=strlen(this.label);
+    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+10, this.label);
+    );
+  this.ys=y+w-18;
+  this.unit ==0 ? this.unit="";
+  this.prec == 0 ? (
+    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+35, sprintf(this.s, "%.0f%s", Value, this.unit));
+    );
+  this.prec == 1 ? (
+    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+35, sprintf(this.s, "%.1f%s", Value, this.unit));
+    );
+  this.prec == 2 ? (
+    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+35, sprintf(this.s, "%.2f%s", Value, this.unit));
+    );
+  this.prec == 3 ? (
+    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+35, sprintf(this.s, "%.3f%s", Value, this.unit));
+    );
+
+  gfx_r=gfx_b=gfx_g=1;
+
+  this.valueratio = max(0, min(1, (value - this.val_min)/(this.val_max - this.val_min)));
+  this.i =  max(0, min(1, (this.value - this.val_min) / (this.val_max - this.val_min) ));
+    this.bias ? (
+      this.valueratio=log(this.valueratio*(exp(this.bias) - 1) + 1)/this.bias;
+      this.i = log(i*(exp(this.bias) -1 ) + 1)/this.bias;
+    ) : this.valueratio;
+
+    this.lowangle = -2.3;
+    this.highangle = 2.3;
+    this.angle = this.lowangle + (this.highangle - this.lowangle)*(this.valueratio*0.98 + 0.02);
+
+    xx =  sin(this.angle) * this.ra;
+    yy = -cos(this.angle) * this.ra;
+    gfx_a = 1;
+    this.r+this.b+this.g >=2.3 ? (
+          gfx_r = 0; gfx_g = gfx_b = 0;
+          ):(
+          gfx_r = 1; gfx_g = gfx_b = 1;
+          );
+    gfx_line(this.center_x , this.center_y, this.center_x + xx, this.center_y + yy,1);
+
+  mouse_x >= this.center_x-w/2 && mouse_x <= this.center_x+w/2
+  && mouse_y >= this.center_y-w/2 && mouse_y <= this.center_y+w/2 ? (
+    !mouse_cap ? this.hasEntered = 1;
+     mouse_cap ? this.hasClicked = 1;
+    ):(
+    this.hasEntered=0;
+  );
+  this.hasEntered ? (
+    this.bias ? (this.nv_val=(this.val_max-this.val_min)/1000* mouse_wheel/(5*this.bias*this.bias);
+      ):(
+      this.nv_val=(this.val_max-this.val_min)/1000* mouse_wheel/10;
+      );
+    this.update_slider=1;
+    mouse_wheel=0;
+
+  );
+  this.canChange==0 ? this.start_pos=mouse_y;
+  this.hasEntered & mouse_cap ? (
+    this.hasClicked=1;
+    this.canChange=1;
+    test=this.label;
+    ):(
+    this.hasClicked=0;
+  );
+
+  mouse_cap  ? (
+    this.end_pos=mouse_y;
+    mouse_cap == 9 ? this.fine_tune=3000 : this.fine_tune=300;
+    this.bias ? (
+      this.nv_val=(this.val_max-this.val_min)/this.fine_tune* (this.start_pos-this.end_pos)/(this.bias);
+      ):(
+      this.nv_val=(this.val_max-this.val_min)/this.fine_tune* (this.start_pos-this.end_pos);
+      );
+    this.update_slider=1;
+
+    this.start_pos=mouse_y;
+    );
+  mouse_cap == 0 ? (
+    this.canChange == 1 ? (
+      this.end_pos=mouse_y;
+      this.bias!="" ? (
+        this.nv_val=(this.start_pos-this.end_pos)/this.bias;
+        ):(
+        this.nv_val=this.start_pos-this.end_pos;
+        );
+      this.update_slider=1;
+      );
+    this.canChange=0;
+    );
+
+  this.y_tmp = mouse_y;
+  this.nv_val*=10^this.prec;
+  this.nv_val > 0 ? this.nv_val=ceil(this.nv_val):this.nv_val=floor(this.nv_val);
+  this.nv_val/=10^this.prec;
+    // Update
+    this.value.temp != this.value ? (
+      this.value = max(this.value,f);
+      this.value = min(this.value,t);
+      this.normalized = this.value * (1/(this.steps * s)) * 0.999;
+      this.rpos = floor((1 - this.normalized) + fn * this.normalized) * fh;
+      );
+    value;
+);
+
+function draw_chkbox(x,y,s,title,color)
+(
+  this.titleA ? (
+    gfx_r = gfx_g = gfx_b = this.titleA;
+    ):(
+    gfx_r = gfx_g = gfx_b = 0.3;
+    );
+  gfx_measurestr(title,this.str.w,this.str.h);
+  this.titleR ? (
+//    gfx_x = x + this.str.w - 10; gfx_y = y + (s * 0.5) - (this.str.h * 0.5);
+    gfx_x = x + 13; gfx_y = y + (s * 0.5) - (this.str.h * 0.5);
+    ):(
+    gfx_x = x - this.str.w - 5; gfx_y = y + (s * 0.5) - (this.str.h * 0.5);
+    );
+  this.tmp_x=gfx_x;
+  this.tmp_y=gfx_y;
+  gfx_a = .15;
+  label_size=strlen(this.label);
+  GfxDrawStr(this.tmp_x, this.tmp_y, this.tmp_x+this.str.w, this.tmp_y+this.str.h+2, title);
+  gfx_x=this.tmp_x;
+  gfx_y=this.tmp_y;
+  gfx_blurto(this.tmp_x+this.str.w, this.tmp_y+this.str.h+2);
+  gfx_a = .07;
+  label_size=strlen(this.label);
+  GfxDrawStr(this.tmp_x, this.tmp_y, this.tmp_x+this.str.w, this.tmp_y+this.str.h+2, title);
+  gfx_x=this.tmp_x;
+  gfx_y=this.tmp_y;
+  gfx_blurto(this.tmp_x+this.str.w, this.tmp_y+this.str.h+2);
+  gfx_a=1;
+  gfx_x=this.tmp_x;
+  gfx_y=this.tmp_y;
+  gfx_drawstr(title);
+//  gfx_x = x - this.str.w - 5; gfx_y = y + (s * 0.5) - (this.str.h * 0.5);
+
+  // Mouse Logic
+  mouse_x >= x && mouse_x <= x+s && mouse_y >= y && mouse_y <= y+s && !this.disabled ? (
+    !mouse_cap ? this.hasEntered = 1;
+    mouse_cap ? this.hasClicked = 1;
+    this.hasEntered && this.hasClicked ? this.canChange = 1;
+  ) : (
+    this.hasEntered = this.hasClicked = this.canChange = 0;
+  );
+  !mouse_cap ? (this.canChange = 0;);
+
+  this.canChange ? (
+    this.checked = 1-this.checked;
+    this.hasEntered = this.hasClicked = this.canChange = 0;
+    this.update_slider=1;
+    _sliderDirty = 1;
+  );
+
+  // Frame
+  gfx_r = gfx_g = gfx_b = 0.4;
+  gfx_rect(x,y,s,s);
+  gfx_r = gfx_g = gfx_b = 0.15;
+  gfx_rect(x+1,y+1,s-2,s-2);
+
+  // Checked
+  this.checked ? (
+
+    color==1 ? (gfx_r = 0.0; gfx_g = 0.9; gfx_b = 0;);
+    color==2 ? (gfx_r = 0.9; gfx_g = 0.0; gfx_b = 0;);
+    color==3 ? (gfx_r = 0.0; gfx_g = 0.0; gfx_b = 0.9;);
+    color==4 ? (gfx_r = 0.9; gfx_g = 0.9; gfx_b = 0.0;);
+    color==5 ? (gfx_r = 0.0; gfx_g = 0.9; gfx_b = 0.9;);
+    color==6 ? (gfx_r = 0.9; gfx_g = 0.0; gfx_b = 0.9;);
+
+    //glow
+    !this.noglow ? (
+      gfx_a=.1;
+      gfx_rect(x,y,s,s);
+      gfx_x=x-2;
+      gfx_y=y-2;
+      gfx_blurto(x+s+2,y+s+2);
+      gfx_a=.05;
+      gfx_rect(x-1,y-1,s+2,s+2);
+      gfx_x=x-2;
+      gfx_y=y-2;
+      gfx_blurto(x+s+3,y+s+3);
+      //gfx_a=.05;
+      //gfx_rect(x-2,y-2,s+4,s+4);
+      gfx_x=x-2;
+      gfx_y=y-2;
+      gfx_blurto(x+s+3,y+s+3);
+    );
+    gfx_a=1;
+    gfx_rect(x+2,y+2,s-4,s-4);
+  );
+
+  this.checked;
+);
+
+function blur(bxstart,bystart,bxend,byend)(
+  gfx_x=bxstart;
+  gfx_y=bystart;
+  gfx_blurto(bxend,byend);
+  gfx_x=bxstart;
+  gfx_y=bystart;
+  gfx_blurto(bxend,byend);
+  gfx_x=bxstart;
+  gfx_y=bystart;
+  gfx_blurto(bxend,byend);
+);
+
+function button(xb,yb,nomb)(
+
+  gfx_measurestr(nomb,w,h);
+  gfx_r=gfx_g=gfx_b=0.6;
+//  gfx_roundrect(xb,yb,w+6,h+6,5);
+  gfx_rect(xb,yb,w+6,h+6,5);
+  gfx_x=xb+3;
+  gfx_y=yb+3;
+  gfx_r=gfx_g=gfx_b=0;
+  gfx_drawstr(nomb);
+
+  // Mouse Logic
+    mouse_x >= xb && mouse_x <= xb+w && mouse_y >= yb && mouse_y <= yb+h && !this.disabled ? (
+      !mouse_cap ? this.hasEntered = 1;
+      mouse_cap ? this.hasClicked = 1;
+      this.hasEntered && this.hasClicked ? this.canChange = 1;
+    ) : (
+      this.hasEntered = this.hasClicked = this.canChange = 0;
+    );
+    !mouse_cap ? (this.canChange = 0;);
+
+    this.canChange ? (
+      this.checked = 1-this.checked;
+      this.hasEntered = this.hasClicked = this.canChange = 0;
+      _sliderDirty = 1;
+    );
+  this.checked ? main=0;
+
+);
+
+//By Joanny Krafft
+function init_knob(kid, klabel, kunit, kval_min, kval_max, kprec, kr, kg, kb)(
+  this.id=kid;
+  this.label=klabel;
+  this.r=kr;
+  this.g=kg;
+  this.b=kb;
+  this.val_min=kval_min;
+  this.val_max=kval_max;
+  this.unit=kunit;
+  this.prec=kprec;
+);
+
+function process_knob()(
+  this.update_slider ? (
+  slider(this.id) = sign(this.nv_val)==-1 ?
+    max(slider(this.id)+this.nv_val,this.val_min) : slider(this.id)=min(slider(this.id)+this.nv_val,this.val_max);
+    this.update_slider=0;
+    sliderchange(this.id);
+    SWIPE.WidgetChanged=TRUE;
+  );
+);

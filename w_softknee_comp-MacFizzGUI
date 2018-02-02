@@ -1,0 +1,263 @@
+desc:Witti's Softknee Compressor - MacFizz
+//tags: Compressor
+//author: Witti/MacFizz
+
+import swipe.jsfx-inc
+import macfizz-toolbox.jsfx-inc
+import macfizz-gui.jsfx-inc
+
+//Comp
+slider20:-30<-70,0>-Threshold (dB)
+slider21:4<1,20>-Ratio
+slider22:10<1,150>-Attack Time (ms)
+slider23:50<.1,500>-Release Time (ms)
+slider24:50<10,100,1>-Env Decay (ms)
+slider25:0<-6,18>-Post Gain
+slider26:1<0,1,1{Off,On}>-Soft knee
+
+slider59:1<0,1,1{Off,On}>-Comp
+
+@init
+//comp
+    output = 1;
+    transfer_A = 0;
+    transfer_B = 1;
+    gain = 1;
+    env = 0;
+
+    log2dB = 8.6858896380650365530225783783321;
+    db2log = 0.11512925464970228420089957273422;
+    gr_meter = 1;
+    gr_meter_decay = exp(1/(1*srate));
+    slider26=1;
+    s2=sqrt(2)/2;
+
+  //Comp
+  knob20.init_knob(20,"Treshold","dB",-70,0,1,.5,.5,1);
+  knob21.init_knob(21,"Ratio",":1",1,20,2,.85,.85,.85);
+  knob22.init_knob(22,"Attack","ms",1,200,1,.85,.85,.85);
+  knob23.init_knob(23,"Release","ms",1,1000,1,.85,.85,.85);
+  knob24.init_knob(24,"Env decay","ms",10,100,1,.85,.85,.85);
+  knob25.init_knob(25,"Post gain","dB",-6,18,2,1,.7,.7);
+
+@slider
+  s59.checked = slider59;
+  s26.checked = slider26;
+
+@sample
+
+spl0 || spl1 != 0 ?(playing=1):(playing=0);
+
+spl0 == spl1 ? (mono=1):(mono=0);
+
+playing == 1 ? (
+  compress=slider59;
+  gate=slider58;
+  eqs=slider60;
+  hpf=slider51;
+  ls=slider52;
+  eq1=slider53;
+  eq2=slider54;
+  eq3=slider55;
+  hs=slider56;
+  lpf=slider57;
+  limiter=slider61;
+  saturation=slider36;
+
+  //comp
+  compress ? (
+               threshold = 10^(slider20/20);
+               ratio = slider21;
+               soft = slider26;
+               attack = exp(-1/(slider22/1000*srate));
+               release = exp(-1/(slider23/1000*srate));
+               envelope_decay = exp(-1/(slider24/1000*srate));
+               vol = 10^(slider25/20);
+               s26.checked = slider26;
+  );
+   //comp
+  compress==1 ? (
+    co.compressor_do(spl0, spl1);
+    spl0=co.out0;
+    spl1=co.out1;
+    );
+  );
+
+@gfx 400 195
+gfx_w=430;
+gfx_h=180;
+gfx_mode=0;
+
+SWIPE(gfx_w, gfx_h) ?
+(
+  #msg="";
+  #nom_fx =" | License LGPL / (C) 2018 Joanny Krafft";
+  #ordre="Compressor";
+  playing == 1 ? (
+    strcat(#msg,"Processing | ");
+    mono == 1 ? (#mode="Mono | "):(#mode="Stereo | ");
+  );
+  strcat(#msg,#mode);
+  strcat(#msg,#ordre);
+  strcat(#msg,#nom_fx);
+  _effect.EffectBasic("Witti's Softknee Compressor",#msg);
+
+ w = 65;
+ h = 75;
+ hy = 75;
+x1= x = 20;//(gfx_w - w * 5) * 0.5 -60;
+ys= y = 60;
+
+!bcred.checked & !binfos.checked ? main=1;
+main ? (
+  bcred.checked=binfos.checked=0;
+  //Comp
+  gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 19; gfx_y = y -12;
+  GfxDrawRect3D(x,y-15,x+6*w,y+h,1);
+  s59.titleR=1;
+  s59.titleA=.1;
+  slider59 = s59.draw_chkbox(x+4,y-10,10,"Compressor",1);x +=0;
+  knob20.draw_pot(x,y,w,slider20);
+  knob20.process_knob();
+  sliderchange(slider20);
+  x += w;
+  knob21.draw_pot(x,y,w,slider21);
+  knob21.process_knob();
+  x += w;
+  knob22.draw_pot(x,y,w,slider22);
+  knob22.process_knob();
+  x += w;
+  knob23.draw_pot(x,y,w,slider23);
+  knob23.process_knob();
+  x += w;
+  knob24.draw_pot(x,y,w,slider24);
+  knob24.process_knob();
+  x += w;
+  knob25.draw_pot(x,y,w,slider25);
+  knob25.process_knob();
+  x += w;
+  slider26 = s26.draw_chkbox(x1+w*2+10,y-10,10,"Soft",5);x +=0;
+  y=2*hy;x= x1;
+
+ //Comp graph
+ largeur_gr=2*w+15;
+ dep_gr=6*w+15;
+ gfx_r=gfx_g=gfx_b=0; gfx_a=0.8;
+//cadre
+ gfx_rect(dep_gr-largeur_gr,ys-10,largeur_gr,10);
+ //couleur de la barre
+ gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
+
+ meter_bot=21;
+ meter_h=20;//min(gfx_h,gfx_h-4);
+ xscale=largeur_gr*20/meter_bot;
+
+ gfx_y=y+h;
+ //gfx_x=;
+ //affichage du GR
+compress==1 && playing == 1 ? (
+  larg_rect=max(log10(gr_meter)*xscale,-largeur_gr);
+  gfx_rect(larg_rect+dep_gr+1,ys-10,abs(larg_rect),10);
+  rect_decay=larg_rect;
+  g = s2;
+  gfx_setfont(5,arial, 9);
+  meter_scale=1;
+ gfx_r=gfx_g=gfx_b=1.0; gfx_a=0.6;
+
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+
+//prettier but slower !!!
+//  while (meter_scale<=7)(
+//    coord_x=largeur_gr/7*meter_scale;
+//    gfx_line(9*w+35-coord_x,ys-10,9*w+35-coord_x,ys,0);
+//   gfx_x=9*w+35-coord_x;
+//    gfx_y=ys-10;
+//    gfx_drawnumber(log10(g)*20,0);
+//    gfx_drawchar($'d');
+//    gfx_drawchar($'B');
+//    g*=s2;
+//    meter_scale+=1;
+//  );
+
+  ):(
+  rect_decay<0 ? (
+    rect_decay+=1;
+    gfx_rect(rect_decay+dep_gr+1,ys-10,abs(rect_decay),10);
+  );
+);
+  gfx_r=gfx_g=gfx_b=0.0; gfx_a=0.9;
+  gfx_setfont(5,"Arial", 11, 'b');
+  grmin_posx=3*w+20;
+  grmin_posy=ys - 10;
+  gfx_x=grmin_posx; gfx_y=grmin_posy;
+  (mouse_cap && mouse_x>=grmin_posx && mouse_x<= 6*w-largeur_gr+20 &&
+     mouse_y>=grmin_posy && mouse_y<=grmin_posy+20) ? (grmin=0;);
+  gfx_drawnumber(grmin,1);
+  gfx_drawstr("dB");
+
+  );
+
+ _effect.EffectDone();
+ );

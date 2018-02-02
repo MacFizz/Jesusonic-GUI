@@ -1,0 +1,438 @@
+// Copyright 2006, Thomas Scott Stillwell
+// All rights reserved.
+//
+//Redistribution and use in source and binary forms, with or without modification, are permitted
+//provided that the following conditions are met:
+//
+//Redistributions of source code must retain the above copyright notice, this list of conditions
+//and the following disclaimer.
+//
+//Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+//and the following disclaimer in the documentation and/or other materials provided with the distribution.
+//
+//The name of Thomas Scott Stillwell may not be used to endorse or
+//promote products derived from this software without specific prior written permission.
+//
+//THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+//IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+//FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+//BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+//PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+//THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+desc:Martin Madero''s Kick Ass Master Set
+
+//desc:1175 Compressor
+//desc:1175 FAST Attack Compressor with Program-Dependent Release [Stillwell]
+//tags: dynamics compressor
+
+import mmkams.jsfx-inc
+import swipe.jsfx-inc
+import macfizz-gui.jsfx-inc
+
+//Stereo Enhancer
+slider1:100<0,200,1>-Width Low (%)
+slider2:500<0,20000,1>-Crossover (Hz)
+slider3:100<0,200,1>-Width High (%)
+slider5:1<0,1,1{Off,On}>-Stereo Enhancer
+
+//1175 compressor
+slider11:0<-60,0,0.1>-Threshold (dB)
+slider12:1<0,3,1{4,8,12,20,All}>-Ratio
+slider13:0<-20,20,0.1>-Gain (dB)
+slider14:20<20,2000,10>-Attack (és)
+slider15:250<20,1000,1>-Release (ms)
+slider16:100<0,100,0.1>-Mix (%)
+slider19:1<0,1,1{Off,On}>-1175
+
+//Saturation
+slider21:0<0,100,1>-Amount (%)
+slider25:1<0,1,1{Off,On}>-Saturation
+
+//Zero Crossing Maximizer
+slider26:0<-12,0,.1>-Threshold (dB)
+slider27:0<-12,0,.1>-Ceiling (dB)
+slider28:500<250,1000,1>-Buffer Size (ms)
+slider29:1<0,1,1{Off,On}>-zero crossing
+
+//Event Horizon Limiter/Clipper
+slider31:0.0<-30.0,0.0,0.1>-Threshold
+slider32:-0.1<-20.0,0.0,0.1>-Ceiling
+slider33:0<0,1200,1>-Release (ms) (0=auto)
+slider35:1<0,1,1{Off,On}>-Event Horizon
+
+in_pin:L in
+in_pin:R in
+out_pin:L out
+out_pin:R out
+
+@init
+  log2db = 8.6858896380650365530225783783321; // 20 / ln(10)
+  db2log = 0.11512925464970228420089957273422; // ln(10) / 20
+  pi = 3.1415926535;
+  halfpi = pi / 2;
+  cDenorm = 10^-30;
+  co.init_co1175();
+
+  function uncheckbox()(
+      cbr4.checked=0;
+      cbr8.checked=0;
+      cbr12.checked=0;
+      cbr20.checked=0;
+      cbrall.checked=0;
+    );
+
+//1175
+  kb_1175tresh.init_knob(11,"Treshold","dB",-60,0,1,.5,.5,1);
+  kb_1175gain.init_knob(13,"Gain","dB",-20,20,1,1,.7,.7);
+  kb_1175attack.init_knob(14,"Attack","ms",20,2000,0,.5,.5,.5);
+  kb_1175release.init_knob(15,"Release","ms",20,1000,0,.5,.5,.5);
+  kb_1175mix.WidgetInit(16, 0, 100, "Mix", "%");
+  cb19.checked=slider19;
+
+//steh
+  kb_stehWlow.init_knob(1,"Width Low","%",0,200,0,.5,.5,.5);
+  hsd_stehcx.WidgetInit(2, 0, 20000, "", "Hz");
+  kb_stehWhigh.init_knob(3,"Width High","%",0,200,0,.5,.5,.5);
+  cb5.checked=slider5;
+
+//Saturation
+  kb_sat.init_knob(21,"Amount","%",0,100,0,1,.5,.5);
+  cb25.checked=slider25;
+
+//zcrossing
+  kb_zctresh.init_knob(26,"Treshold","dB",-12,0,1,.5,.5,1);
+  kb_zcceil.init_knob(27,"Ceiling","dB",-12,0,1,.5,.5,1);
+  kb_zcbsize.init_knob(28,"Buffer Size","ms",250,1000,0,.5,.5,.5);
+  cb29.checked=slider29;
+
+//ehlc
+  kb_ehlctresh.init_knob(31,"Treshold","dB",-30,0,1,.5,.5,1);
+  kb_ehlcceil.init_knob(32,"Ceiling","dB",-20,0,1,.5,.5,1);
+  kb_ehlcRel.init_knob(33,"Release
+(0=auto)","ms",0,1200,0,.5,.5,.5);
+  cb35.checked=slider35;
+
+@slider
+
+  SWIPE.WidgetChanged = TRUE;
+
+@sample
+  SWIPE.WidgetChanged ? ( SWIPE.WidgetChanged = FALSE;
+    slider19 ? co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+    slider5 ? steh.set_steh(slider1, slider2,slider3);
+    slider25 ? sat.set_sat(slider21);
+    slider29 ? zc.set_zcrossing(slider26, slider27, slider28);
+    slider35 ? eh.set_ehlc(slider31,slider32,slider33);
+  );
+
+  spl0 || spl1 != 0 ?(playing=1):(playing=0);
+  comp=slider19;
+  steh=slider5;
+  sat=slider25;
+  zc=slider29;
+  ehlc=slider35;
+
+  playing ? (
+    steh ? (
+      steh.do_steh(spl0,spl1);
+      spl0=steh.steh_outL;
+      spl1=steh.steh_outR;
+    );
+
+    comp ? (
+      co.do_co1175(spl0,spl1);
+      spl0=co.co1175_outL;
+      spl1=co.co1175_outR;
+    );
+
+    sat ? (
+      sat.do_sat(spl0,spl1);
+      spl0=sat.sat_outL;
+      spl1=sat.sat_outR;
+    );
+
+    zc ? (
+      zc.do_zcrossing(spl0,spl1);
+      spl0=zc.zc_outL;
+      spl1=zc.zc_outR;
+      pdc_delay=zc.pdc_delay;
+      pdc_bot_ch=zc.pdc_bot_ch;
+      pdc_top_ch=zc.pdc_top_ch;
+
+      /*zc.pdc_delay && pdc_delay ? (pdc_delay+=zc.pdc_delay;);
+      zc.pdc_bot_ch && pdc_bot_ch ? (pdc_bot_ch=min(zc.pdc_bot_ch,pdc_bot_ch));
+      zc.pdc_top_ch && pdc_top_ch ? (pdc_top_ch=max(zc.pdc_top_ch,pdc_top_ch));
+*/
+    );
+
+    ehlc ? (
+      eh.do_ehlc(spl0,spl1);
+      spl0=eh.ehlc_outL;
+      spl1=eh.ehlc_outR;
+    );
+  );
+
+@gfx 455 690 // request horizontal/vertical heights (0 means dont care)
+
+SWIPE(gfx_w, gfx_h) ?
+(
+  _effect.EffectBasic("Martin Madero's Kick Ass Master Set", "License LGPL / Copyright (C) 2018 Joanny Krafft");
+  w = 60;
+  h = 70;
+  hsd_w=345;
+  //Stereo Enhancer
+  w=60;
+  module_y=65;
+  module_x=20;
+  hsd_h=20;
+  cb5.titleR=1;
+  slider5 = cb5.draw_chkbox(module_x,module_y-25,10,"Stereo Enhancer",1);
+  gfxDrawRect3D(module_x,module_y-5,module_x+w+hsd_w+10,module_y+70,1);
+  module_y=65;
+  kb_stehWlow.draw_pot(module_x,module_y,w,slider1);
+  kb_stehWlow.update_slider ? steh.set_steh(slider1, slider2,slider3);
+  kb_stehWlow.process_knob();
+  hsd_stehcx.SliderHorzCall(module_x-30,module_y+25,module_x+hsd_w,module_y+25+hsd_h);
+  module_x=module_x+hsd_w;
+  kb_stehWhigh.draw_pot(module_x,module_y,w,slider3);
+  kb_stehWhigh.update_slider ? steh.set_steh(slider1, slider2,slider3);
+  kb_stehWhigh.process_knob();
+
+//1175
+  w=80;
+  module_x=20;
+  module_y = 2*h+40;
+  x=y=0;
+  gfx_r=gfx_g=gfx_b=0;
+  gfx_line(module_x-9,module_y-35,gfx_w-12,module_y-35);
+
+  GfxDrawRect3D(module_x,module_y-5,module_x+5*w+15,module_y+h+30,1);
+
+  cb19.titleR=1;
+  slider19 = cb19.draw_chkbox(module_x,module_y-25,10,"Stillwell's 1175 Compressor",1);
+
+  kb_1175tresh.draw_pot(module_x+x,module_y+y,w,slider11);
+  kb_1175tresh.update_slider ? co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+  kb_1175tresh.process_knob();
+  x+=w;
+
+  cbr4.draw_chkbox(module_x+w+35,module_y+10,10,"4",5);
+  cbr4.checked ? (
+    slider12=0;
+    co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+    uncheckbox();
+    cbr4.checked=1;
+  );
+
+  cbr8.draw_chkbox(module_x+w+35,module_y+20,10,"8",5);
+  cbr8.checked ? (
+    slider12=1;
+    co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+    uncheckbox();
+    cbr8.checked=1;
+  );
+  cbr12.draw_chkbox(module_x+w+35,module_y+30,10,"12",5);
+  cbr12.checked ? (
+    slider12=2;
+    co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+    uncheckbox();
+    cbr12.checked=1;
+  );
+  cbr20.draw_chkbox(module_x+w+35,module_y+40,10,"20",5);
+  cbr20.checked ? (
+    slider12=3;
+    co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+    uncheckbox();
+    cbr20.checked=1;
+  );
+  cbrall.draw_chkbox(module_x+w+35,module_y+50,10,"all",5);
+  cbrall.checked ? (
+    slider12=4;
+    co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+    uncheckbox();
+    cbrall.checked=1;
+  );
+
+  cbratio=slider12;
+  cbratio == 0 ?(cbr4.checked=1;cbr8.checked=0;cbr12.checked=0;cbr20.checked=0;cbrall.checked=0;);
+  cbratio == 1 ?(cbr4.checked=0;cbr8.checked=1;cbr12.checked=0;cbr20.checked=0;cbrall.checked=0;);
+  cbratio == 2 ?(cbr4.checked=0;cbr8.checked=0;cbr12.checked=1;cbr20.checked=0;cbrall.checked=0;);
+  cbratio == 3 ?(cbr4.checked=0;cbr8.checked=0;cbr12.checked=0;cbr20.checked=1;cbrall.checked=0;);
+  cbratio == 4 ?(cbr4.checked=0;cbr8.checked=0;cbr12.checked=0;cbr20.checked=0;cbrall.checked=1;
+    gfx_rect(module_x+w+37,module_y+12,6,36);
+  );
+  x+=w;
+  kb_1175gain.draw_pot(module_x+x,module_y+y,w,slider13);
+  kb_1175gain.update_slider ? co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+  kb_1175gain.process_knob();
+  x+=w;
+  kb_1175attack.draw_pot(module_x+x,module_y+y,w,slider14);
+  kb_1175attack.update_slider ? co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+  kb_1175attack.process_knob();
+  x+=w;
+  kb_1175release.draw_pot(module_x+x,module_y+y,w,slider15);
+  kb_1175release.update_slider ? co.set_co1175(slider11,slider12,slider13,slider14,slider15,slider16);
+  kb_1175release.process_knob();
+  x+=w;
+  kb_1175mix.SliderHorzCall(module_x-w, module_y+h+40, module_x+5*w+10, module_y+h+50);
+
+  //1175
+      co.gr_meter *= exp(1/30);
+      co.gr_meter>1 ? co.gr_meter=1; // decay meter here so if the audio processing stops it doesnt "stick"
+      gfx_r=gfx_g=gfx_b=0; gfx_a=1;
+
+      co.meter_x=module_x + 3*w-20;
+      co.meter_y=module_y-25;
+      co.meter_w=195;
+      co.meter_bot=21;
+      co.meter_h=15;
+      co.vu_h=15;
+      co.xscale=co.meter_w*20/co.meter_bot;
+
+      gfx_rect(co.meter_x,co.meter_y,co.meter_w,co.vu_h);
+
+      gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
+      gfx_y=co.meter_y;
+      gr_pos=max(co.meter_x,co.meter_w + log10(co.gr_meter)*co.xscale+co.meter_x);
+      gfx_x=gr_pos;
+      gfx_rectto(co.meter_w+co.meter_x,co.meter_h+co.meter_y);
+      //gfx_line(co.meter_x+co.meter_w/2,co.meter_y+co.vu_h,gr_pos,co.meter_y);
+
+      gfx_r=gfx_g=gfx_b=1.0; gfx_a=0.6;
+
+      co.s2=sqrt(2)/2;
+      co.g = co.s2;
+      gfx_setfont(4);
+      while(
+        gfx_x=co.meter_w + log10(co.g)*co.xscale + co.meter_x;
+        gfx_x >= co.meter_x ?
+        (
+          gfx_y=co.meter_y;
+          gfx_lineto(gfx_x,co.meter_h+co.meter_y,0);
+          gfx_y=co.meter_h-gfx_texth+co.meter_y;
+          gfx_x+=2;
+          gfx_drawnumber(log10(co.g)*20,0);
+          gfx_drawchar($'d');
+          gfx_drawchar($'B');
+        );
+        co.g*=co.s2;
+        gfx_x >=0;
+      );
+      gfx_a=1;
+
+      gfx_x=co.meter_x-35; gfx_y=co.meter_y;
+      gfx_drawnumber(log10(co.gr_meter)*20,1);
+      gfx_drawchar($'d');
+      gfx_drawchar($'B');
+
+  gfx_r=gfx_g=gfx_b=0;
+  gfx_line(module_x-9,module_y+h+60,gfx_w-12,module_y+h+60);
+
+  gfx_setfont(3);
+  //Saturation
+  w=100;
+  module_x=20;
+  module_y=65+h*4;
+  gfxDrawRect3D(module_x,module_y-5,module_x+2*w+5,module_y+120,1);
+  cb25.titleR=1;
+  slider25 = cb25.draw_chkbox(module_x,module_y-25,10,"Saturation",1);
+  module_y=65+h*4;
+  module_x+=50;
+  kb_sat.draw_pot(module_x,module_y,w,slider21);
+  kb_sat.update_slider ? sat.set_sat(slider21);
+  kb_sat.process_knob();
+
+  gfxSize = 170;
+  gfxsizex=205;
+  module_x=20;
+  gfx_r=gfx_g=gfx_b=0; gfx_a=1;
+  gfx_x=module_x;
+  module_y=gfx_y=module_y+w+30;
+  gfx_rectto(gfx_x+gfxsizex,module_y+gfxsize);
+
+  gfx_r=gfx_g=gfx_b=0.8; gfx_a=1;
+  gfx_x=module_x+gfxSizex/2; gfx_y=module_y;
+  gfx_lineto(module_x+gfxSizex/2,module_y+gfxSize,0);
+  gfx_x=module_x; gfx_y=module_y+gfxSize/2;
+  gfx_lineto(module_x+gfxSizex,module_y+gfxSize/2,0);
+
+  gfx_x = module_x+gfxSizex-20; gfx_y = module_y+gfxSize/2;
+  gfx_drawchar($'I');
+  gfx_drawchar($'N');
+
+  gfx_x = module_x+gfxSizex/2+2; gfx_y = module_y;
+  gfx_drawchar($'O');
+  gfx_drawchar($'U');
+  gfx_drawchar($'T');
+
+  slider21 >= 2 ? (
+    gfx_r=0.5; gfx_g=1; gfx_b=0; gfx_a=1;
+    gfx_x=module_x; gfx_y=module_y+gfxSize;
+    x = -1;
+    while(
+      y = -sin(x*sat.foo)/sat.bar;
+      gfx_lineto(module_x+x*gfxSizex/2+gfxSizex/2,module_y+y*gfxSize/2+gfxSize/2,1);
+      (x+=0.1) <= 1;
+    );
+    gfx_lineto(module_x+gfxSizex,module_y,1);
+  ):(
+    gfx_r=0.5; gfx_g=1; gfx_b=0; gfx_a=1;
+    gfx_x=module_x; gfx_y=module_y+gfxSize;
+    gfx_lineto(module_x+gfxSizex,module_y,1);
+  );
+
+
+  //Zero crossings
+  module_x=240;
+  module_y=65+h*4;
+  w=90;
+
+  cb29.titleR=1;
+  slider29 = cb29.draw_chkbox(module_x,module_y-25,10,"Zero Crossing
+maximizer",1);
+  module_y=65+h*4;
+  h=100;
+  gfxDrawRect3D(module_x,module_y-5,module_x+w+5,module_y+h*3,1);
+  module_y=module_y-5;
+  kb_zctresh.draw_pot(module_x,module_y,w,slider26);
+  kb_zctresh.update_slider ? zc.set_zcrossing(slider26, slider27, slider28);
+  kb_zctresh.process_knob();
+  module_y+=h;
+  kb_zcceil.draw_pot(module_x,module_y,w,slider27);
+  kb_zcceil.update_slider ? zc.set_zcrossing(slider26, slider27, slider28);
+  kb_zcceil.process_knob();
+  module_y+=h;
+  kb_zcbsize.draw_pot(module_x,module_y,w,slider28);
+  kb_zcbsize.update_slider ? zc.set_zcrossing(slider26, slider27, slider28);
+  kb_zcbsize.process_knob();
+
+  //ehlc
+  module_x=340;
+  module_y=65+70*4;
+  w=90;
+
+  cb35.titleR=1;
+  slider35 = cb35.draw_chkbox(module_x,module_y-25,10,"Event Horizon
+Limiter/Clipper",1);
+  module_y=65+70*4;
+  h=100;
+  gfxDrawRect3D(module_x,module_y-5,module_x+w+5,module_y+h*3,1);
+  module_y=module_y-5;
+  kb_ehlctresh.draw_pot(module_x,module_y,w,slider31);
+  kb_ehlctresh.update_slider ? eh.set_ehlc(slider31,slider32,slider33);
+  kb_ehlctresh.process_knob();
+  module_y+=h;
+  kb_ehlcceil.draw_pot(module_x,module_y,w,slider32);
+  kb_ehlcceil.update_slider ? eh.set_ehlc(slider31,slider32,slider33);
+  kb_ehlcceil.process_knob();
+  module_y+=h;
+  kb_ehlcRel.draw_pot(module_x,module_y,w,slider33);
+  kb_ehlcRel.update_slider ? eh.set_ehlc(slider31,slider32,slider33);
+  kb_ehlcRel.process_knob();
+
+
+  _effect.EffectDone();
+);

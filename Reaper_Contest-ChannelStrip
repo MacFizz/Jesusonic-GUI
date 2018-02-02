@@ -1,0 +1,907 @@
+// (C) 2017, Joanny Krafft
+
+// NO WARRANTY IS GRANTED. THIS PLUG-IN IS PROVIDED ON AN "AS IS" BASIS, WITHOUT
+// WARRANTY OF ANY KIND. NO LIABILITY IS GRANTED, INCLUDING, BUT NOT LIMITED TO,
+// ANY DIRECT OR INDIRECT,  SPECIAL,  INCIDENTAL OR CONSEQUENTIAL DAMAGE ARISING
+// OUT OF  THE  USE  OR INABILITY  TO  USE  THIS PLUG-IN,  COMPUTER FAILTURE  OF
+// MALFUNCTION INCLUDED.  THE USE OF THE SOURCE CODE,  EITHER  PARTIALLY  OR  IN
+// TOTAL, IS ONLY GRANTED,  IF USED IN THE SENSE OF THE AUTHOR'S INTENTION,  AND
+// USED WITH ACKNOWLEDGEMENT OF THE AUTHOR. FURTHERMORE IS THIS PLUG-IN A  THIRD
+// PARTY CONTRIBUTION,  EVEN IF INCLUDED IN REAPER(TM),  COCKOS INCORPORATED  OR
+// ITS AFFILIATES HAVE NOTHING TO DO WITH IT.  LAST BUT NOT LEAST, BY USING THIS
+// PLUG-IN YOU RELINQUISH YOUR CLAIM TO SUE IT'S AUTHOR, AS WELL AS THE CLAIM TO
+// ENTRUST SOMEBODY ELSE WITH DOING SO.
+
+desc:Reaper Contest - Channel Strip
+//tags: Channel Strip
+//author: MacFizz
+
+//import cookdsp.jsfx-inc
+import swipe.jsfx-inc
+import macfizz-toolbox.jsfx-inc
+import macfizz-gui.jsfx-inc
+
+version="1.20180202"
+
+slider44:0<0,1,1{Comp then EQ,EQ then Comp}>-Comp->EQ / EQ->Comp
+
+//HPF
+slider1:100<16,350 ,1>-HPF Cutoff Frequency In Hz
+slider31:1<1,3,1{12dB/oct,24dB/oct,60dB/dB}>-HPF
+//LPF
+slider15:20000<5000,22000,1>-LPF Cutoff Frequency In Hz
+slider32:1<1,3,1{12dB/oct,24dB/oct,60dB/dB}>-LPF
+
+//LS
+slider2:250<30,450>-Frequency
+slider3:0<-18,18>-Boost/Cut (dB)
+
+//Band 1
+slider4:250<100,800>-Low Frequency
+slider5:.7<0.05,6,.1>-Filter Q
+slider6:0<-18,18>-Boost/Cut (dB)
+
+//Band 2
+slider7:500<200,3000>-Center Frequency
+slider8:.7<0.05,6,.1>-Filter Q
+slider9:0<-18,18>-Boost/Cut (dB)
+
+//Band 3
+slider10:3000<1000,10000>-High Frequency
+slider11:.7<0.05,6,.1>-Filter Q
+slider12:0<-18,18>-Boost/Cut (dB)
+
+//HS
+slider13:5000<1500,16000,10>-Frequency
+slider14:0<-18,18>-Boost/Cut (dB)
+
+
+//gate
+slider16:-50<-90,0>-Threshold (dB)
+slider17:10<1,150,1>-Attack Time (ms)
+slider18:50<1,1000>-Release Time (ms)
+slider19:50<10,100>-Env decay (ms)
+
+//Comp
+slider20:-30<-70,0>-Threshold (dB)
+slider21:4<1,20>-Ratio
+slider22:10<1,150>-Attack Time (ms)
+slider23:50<.1,500>-Release Time (ms)
+slider24:50<10,100,1>-Env Decay (ms)
+slider25:0<-6,18>-Post Gain
+slider26:0<0,1,1{Off,On}>-Soft knee
+
+//Limiter
+slider27:0<-15,1,0.1>-Output Brickwall (dB)
+
+//Checkbox
+slider51:0<0,1,1{Off,On}>-HPF
+slider52:0<0,1,1{Off,On}>-LS
+slider53:0<0,1,1{Off,On}>-Band 1
+slider54:0<0,1,1{Off,On}>-Band 2
+slider55:0<0,1,1{Off,On}>-Band3
+slider56:0<0,1,1{Off,On}>-HS
+slider57:0<0,1,1{Off,On}>-LPF
+slider58:0<0,1,1{Off,On}>-Gate
+slider59:0<0,1,1{Off,On}>-Comp
+
+slider60:0<0,1,1{Off,On}>-EQs
+slider61:0<0,1,1{Off,On}>-Limiter
+slider36:0<0,1,1{Off,On}>-Sat
+
+slider35:0<0,100,1>-Saturation amount (%)
+
+in_pin:L in
+in_pin:R in
+out_pin:L out
+out_pin:R out
+
+@init
+  main=1;
+  credits=0;
+  infos=0;
+
+  msg=" ";
+  fx=" ";
+
+  //gate
+  gt.gain = 1;
+  gt.env = 0;
+
+  //init Limiter
+  amp_dB = 8.6562;
+  baseline_threshold_dB = -9.0;
+  a = 1.017;
+  b = -0.025;
+  boost_dB = 0;
+
+  //comp
+    output = 1;
+    transfer_A = 0;
+    transfer_B = 1;
+    gain = 1;
+    env = 0;
+
+    log2dB = 8.6858896380650365530225783783321;
+    db2log = 0.11512925464970228420089957273422;
+    gr_meter = 1;
+    gr_meter_decay = exp(1/(1*srate));
+    slider26=1;
+    s2=sqrt(2)/2;
+
+  slider60=1;
+  //Low shelf
+  //slider52==1 ? (
+  LShelfQ=1;
+  f1.eq(slider2, LShelfQ, slider3, 1);
+  f2.eq(slider2, LShelfQ, slider3, 1);
+  //);
+
+  //Band 1
+  f3.eq(slider4, slider5, slider6, 0);
+  f4.eq(slider4, slider5, slider6, 0);
+
+  //Band 2
+  f5.eq(slider7, slider8, slider9, 0);
+  f6.eq(slider7, slider8, slider9, 0);
+
+  //Band 3
+  f7.eq(slider10, slider11, slider12, 0);
+  f8.eq(slider10, slider11, slider12, 0);
+
+  //High shelf
+  //slider52==1 ? (
+  HShelfQ=1;
+  f9.eq(slider13, HShelfQ, slider14, 2);
+  f10.eq(slider13, HShelfQ, slider14, 2);
+  //);
+
+  //HPF
+  knob1.init_knob(1,"","Hz",16,350,0,.3,.3,.3);
+  //LPF
+  knob15.init_knob(15,"","Hz",5000,22000,0,.7,.3,.7);
+  knob15.bias=4;
+  //LS
+  knob2.init_knob(2,"","Hz",30,450,0,.7,1,.7);
+  knob3.init_knob(3,"Cut/boost","dB",-18,18,2,1,.7,.7);
+  //Band 1
+  knob4.init_knob(4,"","Hz",100,1000,0,.7,1,.7);
+  knob5.init_knob(5,"Q","",0.05,6,3,.7,.7,1);
+  knob6.init_knob(6,"Gain","dB",-18,18,2,1,.7,.7);
+  //Band 2
+  knob7.init_knob(7,"","Hz",200,3000,0,.7,1,.7);
+  knob8.init_knob(8,"Q","",0.05,6,3,.7,.7,1);
+  knob9.init_knob(9,"Gain","dB",-18,18,2,1,.7,.7);
+  //Band 3
+  knob10.init_knob(10,"","Hz",1000,10000,0,.7,1,.7);
+  knob11.init_knob(11,"Q","",0.05,6,3,.7,.7,1);
+  knob12.init_knob(12,"Gain","dB",-18,18,2,1,.7,.7);
+  //HS
+  knob13.init_knob(13,"","Hz",1500,16000,0,.7,1,.7);
+  knob14.init_knob(14,"Cut/boost","dB",-18,18,2,1,.7,.7);
+  //Gate
+  knob16.init_knob(16,"Treshold","dB",-90,0,1,.5,.5,1);
+  knob17.init_knob(17,"Attack","ms",1,150,1,.6,.6,.6);
+  knob18.init_knob(18,"Release","ms",1,1000,1,.6,.6,.6);
+  knob19.init_knob(19,"Env decay","ms",10,100,1,.6,.6,.6);
+  //Comp
+  knob20.init_knob(20,"Treshold","dB",-70,0,1,.5,.5,1);
+  knob21.init_knob(21,"Ratio",":1",1,20,2,.85,.85,.85);
+  knob22.init_knob(22,"Attack","ms",1,200,1,.85,.85,.85);
+  knob23.init_knob(23,"Release","ms",1,1000,1,.85,.85,.85);
+  knob24.init_knob(24,"Env decay","ms",10,100,1,.85,.85,.85);
+  knob25.init_knob(25,"Post gain","dB",-6,18,2,1,.7,.7);
+  //Lim
+  knob27.init_knob(27,"","dB",-15,1,2,.85,.85,.85);
+  //Satu
+  knob35.init_knob(35,"","%",0,100,2,.85,.85,.85);
+
+
+@slider
+  s51.checked = slider51;
+  s52.checked = slider52;
+  s53.checked = slider53;
+  s54.checked = slider54;
+  s55.checked = slider55;
+  s56.checked = slider56;
+  s57.checked = slider57;
+  s58.checked = slider58;
+  s59.checked = slider59;
+  s60.checked=slider60;
+  s61.checked=slider61;
+  s26.checked=slider26;
+
+  s44.checked=slider44;
+
+  s31.checked=slider31;
+  s32.checked=slider32;
+
+  limit_dB = slider27;
+  threshold_dB = baseline_threshold_dB + limit_dB;
+
+  SWIPE.WidgetChanged = TRUE;
+
+@sample
+
+spl0 || spl1 != 0 ?(playing=1):(playing=0);
+
+spl0 == spl1 ? (mono=1):(mono=0);
+
+playing == 1 ? (
+  compress=slider59;
+  gate=slider58;
+  eqs=slider60;
+  hpf=slider51;
+  ls=slider52;
+  eq1=slider53;
+  eq2=slider54;
+  eq3=slider55;
+  hs=slider56;
+  lpf=slider57;
+  limiter=slider61;
+  saturation=slider36;
+
+  SWIPE.WidgetChanged ? (
+    SWIPE.WidgetChanged = FALSE;
+    //Gate
+    gate ? (gt.gt_set(slider16,slider17,slider18,slider19);
+    );
+  //comp
+    compress ? (
+       threshold = 10^(slider20/20);
+       ratio = slider21;
+       soft = slider26;
+       attack = exp(-1/(slider22/1000*srate));
+       release = exp(-1/(slider23/1000*srate));
+       envelope_decay = exp(-1/(slider24/1000*srate));
+       vol = 10^(slider25/20);
+       s26.checked = slider26;
+    );
+
+    eqs ? (
+    //Low shelf
+      ls ? (
+        f1.eq_set_freq(slider2); f2.eq_set_freq(slider2);
+        f1.eq_set_q(LShelfQ); f2.eq_set_q(LShelfQ);
+        f1.eq_set_boost(slider3); f2.eq_set_boost(slider3);
+        f1.eq_set_type(1); f2.eq_set_type(1);
+      );
+
+    //Band 1
+      eq1 ? (
+        f3.eq_set_freq(slider4); f4.eq_set_freq(slider4);
+        f3.eq_set_q(slider5); f4.eq_set_q(slider5);
+        f3.eq_set_boost(slider6); f4.eq_set_boost(slider6);
+        f3.eq_set_type(0); f4.eq_set_type(0);
+      );
+
+    //Band 2
+      eq2 ? (
+        f5.eq_set_freq(slider7); f6.eq_set_freq(slider7);
+        f5.eq_set_q(slider8); f6.eq_set_q(slider8);
+        f5.eq_set_boost(slider9); f6.eq_set_boost(slider9);
+        f5.eq_set_type(0); f6.eq_set_type(0);
+      );
+
+    //Band 3
+      eq3 ? (
+        f7.eq_set_freq(slider10); f8.eq_set_freq(slider10);
+        f7.eq_set_q(slider11); f8.eq_set_q(slider11);
+        f7.eq_set_boost(slider12); f8.eq_set_boost(slider12);
+        f7.eq_set_type(0); f8.eq_set_type(0);
+      );
+
+    //High shelf
+      hs ? (
+        f9.eq_set_freq(slider13); f10.eq_set_freq(slider13);
+        f9.eq_set_q(HShelfQ); f10.eq_set_q(HShelfQ);
+        f9.eq_set_boost(slider14); f10.eq_set_boost(slider14);
+        f9.eq_set_type(2); f10.eq_set_type(2);
+      );
+    );
+
+    saturation ? (
+      sat.saturation_set(slider35);
+    );
+  );
+
+ //HPF
+  hpf ? (
+    n_hp = slider31;
+    hpfl.hpf_set(slider1);
+    hpfr.hpf_set(slider1);
+    spl0=hpfl.hpf_do(spl0,n_hp);
+    spl1=hpfr.hpf_do(spl1,n_hp);
+  );
+
+  //LPF
+  lpf ? (
+    n_lp=slider32;
+    lpfl.lpf_set(slider15);
+    lpfr.lpf_set(slider15);
+    spl0=lpfl.lpf_do(spl0,n_lp);
+    spl1=lpfr.lpf_do(spl1,n_lp);
+  );
+
+  //gate
+  gate ? (
+    gt.gt_do(spl0,spl1);
+    spl0 = gt.outl;
+    spl1 = gt.outr;
+  );
+
+slider44 == 0 ? (
+  //comp
+  compress==1 ? (
+    co.compressor_do(spl0, spl1);
+    spl0=co.out0;
+    spl1=co.out1;
+    );
+);
+
+eqs ? (
+  //Low shelf
+  ls && slider3!=0 ? (
+    mono ? (
+      spl0 = spl1 = f1.eq_do(spl0);
+      ):(
+      spl0 = f1.eq_do(spl0);
+      spl1 = f2.eq_do(spl1);
+    );
+  );
+
+  //Band 1
+  eq1 && slider6!=0 ? (
+    mono ? (
+      spl0 = spl1 = f3.eq_do(spl0);
+      ):(
+      spl0 = f3.eq_do(spl0);
+      spl1 = f4.eq_do(spl1);
+    );
+  );
+  //Band 2
+  eq2 && slider7!=0 ? (
+    mono ? (
+      spl0 = spl1 = f5.eq_do(spl0);
+      ):(
+      spl0 = f5.eq_do(spl0);
+      spl1 = f6.eq_do(spl1);
+    );
+  );
+  //Band 3
+  eq3 && slider8!=0 ? (
+    mono ? (
+      spl0 = spl1 = f7.eq_do(spl0);
+      ):(
+      spl0 = f7.eq_do(spl0);
+      spl1 = f8.eq_do(spl1);
+    );
+  );
+
+  //High shelf
+  hs && slider9!=0 ? (
+    mono ? (
+      spl0 = spl1 = f9.eq_do(spl0);
+      ):(
+      spl0 = f9.eq_do(spl0);
+      spl1 = f10.eq_do(spl1);
+    );
+  );
+);
+slider44 == 1 ? (
+  //comp
+  compress ? (
+    co.compressor_do(spl0, spl1);
+    spl0=co.out0;
+    spl1=co.out1;
+    );
+);
+
+saturation ? (
+  //Saturation
+  satL.Saturation_do(spl0);
+  spl0=satL.out;
+  mono ==0 ? (
+    satR.Saturation_do(spl1);
+    spl1=satR.out;
+    ):(spl1=spl0);
+);
+);
+
+limiter ? (
+  //Limiter
+  limL.limiter_do(spl0);
+  spl0=limL.lim_out;
+  mono ==0 ? (
+    limR.limiter_do(spl1);
+    spl1=limR.lim_out;
+    ):(spl1=spl0);
+);
+
+@gfx 645 340
+gfx_w=645;
+gfx_h=340;
+gfx_mode=0;
+
+
+SWIPE(gfx_w, gfx_h) ?
+(
+  #msg="";
+  #nom_fx =" | License LGPL / (C) 2018 Joanny Krafft";
+  slider44 == 0 ? (
+    #ordre="Filters->Gate->Comp->EQ->Satu->Limiter";
+    ):(
+    #ordre="Filters->Gate->EQ->Comp->Satu->Limiter";
+    );
+
+  playing == 1 ? (
+    strcat(#msg,"Processing | ");
+    mono == 1 ? (#mode="Mono | "):(#mode="Stereo | ");
+  );
+  strcat(#msg,#mode);
+  strcat(#msg,#ordre);
+  strcat(#msg,#nom_fx);
+//  #msg="test";
+  _effect.EffectBasic("Reaper Contest - Channel Strip",#msg);
+  //gfx_blurto(gfx_w,gfx_h);
+ w = 60;
+ h = 70;
+ hy = 70;
+x1= x = 20;//(gfx_w - w * 5) * 0.5 -60;
+ys= y = 60;
+
+!bcred.checked & !binfos.checked ? main=1;
+main ? (
+  bcred.checked=binfos.checked=0;
+
+//Gate
+ GfxDrawRect3D(x,y-15,x+4*w,y+h,1);
+ gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 19; gfx_y = y -12; //gfx_drawstr("Gate");
+ s58.titleR=1;
+ s58.titleA=.1;
+ slider58 = s58.draw_chkbox(x+4,y-10,10,"Gate",1);x +=0;
+ knob16.draw_pot(x,y,w,slider16);
+ x += w;
+ knob17.draw_pot(x,y,w,slider17);
+ x += w;
+ knob18.draw_pot(x,y,w,slider18);
+ x += w;
+ knob19.draw_pot(x,y,w,slider19);
+ x += w+5;
+ knob16.update_slider ||knob17.update_slider||knob18.update_slider||knob19.update_slider ? gt.gt_set(slider16,slider17,slider18,slider19);
+ knob16.process_knob();
+ knob17.process_knob();
+ knob18.process_knob();
+ knob19.process_knob();
+  //LEDs
+ draw_led(x1+w*3, y-5,5);
+ draw_led(x1+w*3+20, y-5,5);
+ draw_led(x1+w*3+40, y-5,5);
+  playing==1 ? (
+    gt.gain>=.99 && slider58==1 ? (
+       gfx_g=1;
+       gfx_b=gfx_r=0;
+       gfx_circle(x1+w*3, y-5,3,1,1);
+     );
+    gt.gain>0.1 && gt.gain<.99 && slider58==1 ? (
+       gfx_r=1;
+       gfx_b=0;
+       gfx_g=1;
+       gfx_circle(x1+w*3+20, y-5,3,1,1);
+     );
+    gt.gain<=.1 && slider58==1 ? (
+      gfx_r=1;
+      gfx_b=gfx_g=0;
+      gfx_circle(x1+w*3+40, y-5,3,1,1);
+    );
+  );
+
+//Comp
+  gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 19; gfx_y = y -12;
+  GfxDrawRect3D(x,y-15,x+6*w,y+h,1);
+  s59.titleR=1;
+  s59.titleA=.1;
+  slider59 = s59.draw_chkbox(x+4,y-10,10,"Compressor",1);x +=0;
+  knob20.draw_pot(x,y,w,slider20);
+  x += w;
+  knob21.draw_pot(x,y,w,slider21);
+  x += w;
+  knob22.draw_pot(x,y,w,slider22);
+  x += w;
+  knob23.draw_pot(x,y,w,slider23);
+  x += w;
+  knob24.draw_pot(x,y,w,slider24);
+  x += w;
+  knob25.draw_pot(x,y,w,slider25);
+  x += w;
+  slider26 = s26.draw_chkbox(x1+w*6+10,y-10,10,"Soft",5);x +=0;
+  y=2*hy;x= x1;
+  knob20.update_slider || knob21.update_slider || knob22.update_slider || knob23.update_slider || knob24.update_slider || knob25.update_slider ? (
+    threshold = 10^(slider20/20);
+    ratio = slider21;
+    soft = slider26;
+    attack = exp(-1/(slider22/1000*srate));
+    release = exp(-1/(slider23/1000*srate));
+    envelope_decay = exp(-1/(slider24/1000*srate));
+    vol = 10^(slider25/20);
+    s26.checked = slider26;
+  );
+  knob20.process_knob();
+  knob21.process_knob();
+  knob22.process_knob();
+  knob23.process_knob();
+  knob24.process_knob();
+  knob25.process_knob();
+
+ //Comp graph
+ largeur_gr=2*w+15;
+ dep_gr=10*w+15;
+ gfx_r=gfx_g=gfx_b=0; gfx_a=0.8;
+//cadre
+ gfx_rect(dep_gr-largeur_gr,ys-10,largeur_gr,10);
+ //couleur de la barre
+ gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
+
+ meter_bot=21;
+ meter_h=20;//min(gfx_h,gfx_h-4);
+ xscale=largeur_gr*20/meter_bot;
+
+ gfx_y=y+h;
+ //gfx_x=;
+ //affichage du GR
+compress==1 && playing == 1 ? (
+  larg_rect=max(log10(gr_meter)*xscale,-largeur_gr);
+  gfx_rect(larg_rect+dep_gr+1,ys-10,abs(larg_rect),10);
+  rect_decay=larg_rect;
+  g = s2;
+  gfx_setfont(5,arial, 9);
+  meter_scale=1;
+ gfx_r=gfx_g=gfx_b=1.0; gfx_a=0.6;
+
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+    coord_x=largeur_gr/7*meter_scale;
+    gfx_line(dep_gr-coord_x,ys-10,dep_gr-coord_x,ys,0);
+    gfx_x=dep_gr-coord_x;
+    gfx_y=ys-10;
+    gfx_drawnumber(log10(g)*20,0);
+    gfx_drawchar($'d');
+    gfx_drawchar($'B');
+    g*=s2;
+    meter_scale+=1;
+
+//prettier but slower !!!
+//  while (meter_scale<=7)(
+//    coord_x=largeur_gr/7*meter_scale;
+//    gfx_line(9*w+35-coord_x,ys-10,9*w+35-coord_x,ys,0);
+//   gfx_x=9*w+35-coord_x;
+//    gfx_y=ys-10;
+//    gfx_drawnumber(log10(g)*20,0);
+//    gfx_drawchar($'d');
+//    gfx_drawchar($'B');
+//    g*=s2;
+//    meter_scale+=1;
+//  );
+
+  ):(
+  rect_decay<0 ? (
+    rect_decay+=1;
+    gfx_rect(rect_decay+dep_gr+1,ys-10,abs(rect_decay),10);
+  );
+);
+
+ gfx_r=gfx_g=gfx_b=0.0; gfx_a=0.9;
+ gfx_setfont(5,"Arial", 11, 'b');
+ grmin_posx=7*w+20;
+ grmin_posy=ys - 10;
+ gfx_x=grmin_posx; gfx_y=grmin_posy;
+ (mouse_cap && mouse_x>=grmin_posx && mouse_x<= 10*w-largeur_gr+20 &&
+    mouse_y>=grmin_posy && mouse_y<=grmin_posy+20) ? (grmin=0;);
+ gfx_drawnumber(grmin,1);
+ gfx_drawstr("dB");
+
+ gfx_setfont(3);
+//Filters
+  GfxDrawRect3D(x,y-5,x+1*w+5,y+h+5,1);
+ s51.titleR=1;
+ s51.titleA=.1;
+ slider51 = s51.draw_chkbox(x+4,y,10,"HPF",1);x +=0;
+ slider31 = s31.draw_chkbox(x+w-10,y,10,"",2);
+ x +=0;
+  knob1.draw_pot(x,y,w,slider1);
+  knob1.process_knob();
+  !slider51 ? (
+     blur(21,ys+h+20,w+20,ys+h*2+10);
+     );
+
+//LPF
+ y=3*hy+10;
+ GfxDrawRect3D(x,y,x+1*w+5,y+h+5,1);
+ s57.titleR=1;
+ s57.titleA=.1;
+ slider57 = s57.draw_chkbox(x+4,y+5,10,"LPF",1);
+ slider32 = s32.draw_chkbox(x+w-10,y+5,10,"",2);
+ knob15.draw_pot(x,y+5,w,slider15);
+ knob15.process_knob();
+ !slider57 ? (
+    blur(21,ys+h*2+35,w+20,ys+h*3+23);
+    );
+ x += w+10;
+ y=2*hy;
+
+//EQ chkboxs
+ s60.titleR=1;
+ s60.titleA=.1;
+ slider60 = s60.draw_chkbox(x1+w+14,y-5,10,"EQs",1);
+ s44.titleR=1;
+ slider44 = s44.draw_chkbox(x1+w*4+14,y-5,10,"EQ>CP",5);
+
+//Low-shelf
+  y+=15;
+  GfxDrawRect3D(x,y-5,x+1*w+5,y+h*2,1);
+  gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 25; gfx_y = y ;
+  s52.titleR=1;
+  s52.titleA=.1;
+ slider52 = s52.draw_chkbox(x+4,y,10,"Shelf",1);
+ knob2.draw_pot(x,y,w,slider2);
+ knob2.update_slider ? (
+   f1.eq_set_freq(slider2); f2.eq_set_freq(slider2);
+ );
+ knob2.process_knob();
+ knob3.draw_pot(x,y+h,w,slider3);
+ knob3.update_slider ? (
+   f1.eq_set_boost(slider3); f2.eq_set_boost(slider3);
+ );
+ knob3.process_knob();
+ x += w+10;
+ !slider52 ? (
+    blur(1.5*w+1,ys+h*2-30,2.5*w+1,ys+h*3+22);
+    );
+
+//Band 1
+y=hy*2+15;
+  GfxDrawRect3D(x,y-5,x+2*w-15,y+2*h,1);
+  s53.titleR=1;
+  s53.titleA=.1;
+ slider53 = s53.draw_chkbox(x+4,y,10,"Band 1",1);x +=0;
+  gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 50; gfx_y = y;
+  knob4.draw_pot(x,y,w,slider4);
+  knob4.update_slider ? (
+    f3.eq_set_freq(slider4); f4.eq_set_freq(slider4);
+  );
+  knob4.process_knob();
+  knob5.draw_pot(x+w-15,y+h/2,w,slider5);
+  knob5.update_slider ? (
+    f3.eq_set_q(slider5); f4.eq_set_q(slider5);
+  );
+  knob5.process_knob();
+  y+= h;
+  knob6.draw_pot(x,y,w,slider6);
+  knob6.update_slider ? (
+    f3.eq_set_boost(slider6); f4.eq_set_boost(slider6);
+  );
+  knob6.process_knob();
+  x += w*2-10;
+ !slider53 ? (
+    blur(3*w-15,ys+h*2-30,4.5*w-10,ys+h*3+22);
+    );
+
+//band 2
+y=hy*2+15;
+GfxDrawRect3D(x,y-5,x+2*w-15,y+2*h,1);
+  s54.titleR=1;
+  s54.titleA=.1;
+ slider54 = s54.draw_chkbox(x+4,y,10,"Band 2",1);x +=0;
+  gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 50; gfx_y = y ;
+  knob7.draw_pot(x,y,w,slider7);
+  knob7.update_slider ? (
+    f5.eq_set_freq(slider7); f6.eq_set_freq(slider7);
+  );
+  knob7.process_knob();
+  knob8.draw_pot(x+w-15,y+h/2,w,slider8);
+  knob8.update_slider ? (
+    f5.eq_set_q(slider8); f6.eq_set_q(slider8);
+  );
+  knob8.process_knob();
+  y+= h;
+  knob9.draw_pot(x,y,w,slider9);
+  knob9.update_slider ? (
+    f5.eq_set_boost(slider9); f6.eq_set_boost(slider9);
+  );
+  knob9.process_knob();
+  x += w*2-10;
+ !slider54 ? (
+    blur(4.5*w+5,ys+h*2-30,6.5*w-20,ys+h*3+22);
+    );
+
+//band 3
+y=hy*2+15;
+GfxDrawRect3D(x,y-5,x+2*w-15,y+2*h,1);
+  s55.titleR=1;
+  s55.titleA=.1;
+ slider55 = s55.draw_chkbox(x+4,y,10,"Band 3",1);x +=0;
+  gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 50; gfx_y = y ;
+  knob10.draw_pot(x,y,w,slider10);
+  knob10.update_slider ? (
+    f7.eq_set_freq(slider10); f8.eq_set_freq(slider10);
+  );
+  knob10.process_knob();
+  knob11.draw_pot(x+w-15,y+h/2,w,slider11);
+  knob11.update_slider ? (
+    f7.eq_set_q(slider11); f8.eq_set_q(slider11);
+  );
+  knob11.process_knob();
+  y+= h;
+  knob12.draw_pot(x,y,w,slider12);
+  knob12.update_slider ? (
+    f7.eq_set_boost(slider12); f8.eq_set_boost(slider12);
+  );
+  knob12.process_knob();
+  x += w*2-10;
+ !slider55 ? (
+    blur(6.5*w-5,ys+h*2-30,8*w,ys+h*3+22);
+    );
+
+//HS
+ y=2*hy+15;
+GfxDrawRect3D(x,y-5,x+1*w+5,y+h*2,1);
+  gfx_r = gfx_g = gfx_b = 0; gfx_x = x+25 ; gfx_y = y ;
+  s56.titleR=1;
+  s56.titleA=.1;
+  slider56 = s56.draw_chkbox(x+4,y,10,"Shelf",1);
+  knob13.draw_pot(x,y,w,slider13);
+  knob13.update_slider ? (
+    f9.eq_set_freq(slider13); f10.eq_set_freq(slider13);
+  );
+ knob13.process_knob();
+ knob14.draw_pot(x,y+h,w,slider14);
+ knob14.update_slider ? (
+   f9.eq_set_boost(slider14); f10.eq_set_boost(slider14);
+ );
+ knob14.process_knob();
+  x += w+10;
+ !slider56 ? (
+    blur(8.5*w-18,ys+h*2-30,9.5*w-20,ys+h*3+22);
+    );
+
+y=2*hy;
+//Saturation
+GfxDrawRect3D(x,y-5,x+1*w+5,y+h+5,1);
+ s36.titleR=1;
+ s36.titleA=.1;
+slider36 = s36.draw_chkbox(x+4,y,10,"Satu.",1);
+//_35.KnobCall(x, y, x + w, y + h, .8, 0.8, .8, 4);
+ knob35.draw_pot(x,y,w,slider35);
+ knob35.process_knob();
+ !slider36 ? (
+    blur(9*w+25,ys+h+20,10.5*w-10,ys+h*2+10);
+    );
+
+//Limiter
+y=3*hy+10;
+GfxDrawRect3D(x,y,x+1*w+5,y+h+5,1);
+ s61.titleR=1;
+ s61.titleA=.1;
+ slider61 = s61.draw_chkbox(x+4,y+5,10,"Limiter",1);
+// _27.KnobCall(x, y+5, x + w, y + h+5, .8, 0.8, .8, 4);
+ knob27.draw_pot(x,y+5,w,slider27);
+ knob27.process_knob();
+//limiter LED
+ draw_led(x+w-5, y+h-20,5);
+ slider61 ? (
+  mono ? limit=limL.limit : limit=(limL.limit+limR.limit)/2;
+   limit > 0 ? lim_led=min(lim_led+.05,1) : lim_led=max(lim_led-0.05,0);
+  ):(
+   lim_led=max(lim_led-0.05,0);
+  );
+  gfx_g=gfx_r=min(1,lim_led);
+  gfx_b=0;
+  gfx_circle(x+w-5, y+h-20,3,1,1);
+ !slider61 ? (
+    blur(9*w+25,ys+h*2+35,10.5*w-7,ys+h*3+23);
+    );
+);
+
+bcred.checked ? (
+      gfx_x=12;
+      gfx_y=35;
+      binfos.checked=0;
+      gfx_drawstr("(C) 2017, Joanny Krafft
+NO WARRANTY IS GRANTED. THIS PLUG-IN IS PROVIDED ON AN \"AS IS\" BASIS, WITHOUT
+WARRANTY OF ANY KIND.
+
+Based on:
+  EQs:
+      JSFX-CookDSP (c) Olivier Belanger - 2017 - belangeo@gmail.com
+  Gate and Compressor:
+      \"w_gate\" and \"Softknee Compressor\" by Witti
+  Filters:
+      \"RBJ Highpass/Lowpass Filters\" by Stillwell
+  Saturation:
+      \"Saturation\" by LOSER
+  Limiter:
+      \"Soft Clipper/Limiter\" by Schwa
+  GUI Framework:
+      SWIPE by Derek John Evans http://www.wascal.net/music/
+
+  All other (knobs, checkboxes, LED) by Joanny Krafft
+    ");
+    );
+binfos.checked ? (
+    bcred.checked=0;
+    gfx_x=12;
+    gfx_y=35;
+    gfx_drawstr("This was made as a test for JS GUI.
+It was used mainly to make a point here:
+      https://forum.cockos.com/showthread.php?p=1929592#post1929592
+
+Come test it on the Reaper mix contest every month:
+      https://reapercontest.wixsite.com/home
+
+
+Use Shift for fine knob usage.");
+
+  );
+
+
+gfx_x=1;
+gfx_y=1;
+gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
+
+//gfx_setfont(1,arial, 20);
+ _effect.EffectDone();
+ binfos.button(gfx_w-120,5,"Infos");
+ bcred.button(gfx_w-70,5,"Credits");
+);

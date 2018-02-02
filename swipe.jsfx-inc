@@ -1,0 +1,579 @@
+// Author: Derek John Evans
+// License: LGPL - http://www.gnu.org/licenses/gpl.html
+
+// NOTE: This library is being developed, and WILL change. Therefore, if you
+// use it, copy the code to your own effect (or library). The code will become more
+// stable as I implement new features.
+
+desc: SWIPE (Simple Widget Interface for Programing Effects)
+
+@init
+
+// Constants
+
+TRUE = 1;
+FALSE = 0;
+
+M_PI = $pi;
+M_2PI = 2 * M_PI;
+
+SWIPE.WidgetChanged = TRUE;
+
+function ColorInit(r, g, b, a)
+(
+  this.r = r;
+  this.g = g;
+  this.b = b;
+  this.a = a;
+);
+
+function ColorInit(r, g, b)
+(
+  this.r = r;
+  this.g = g;
+  this.b = b;
+  this.a = 1;
+);
+
+function PointInit(x, y)
+(
+  this.x = x;
+  this.y = y;
+);
+
+function PointInside(x1, y1, x2, y2)
+(
+  this.x >= x1 && this.x < x2 && this.y >= y1 && this.y < y2;
+);
+
+function RectInit(x1, y1, x2, y2)
+(
+  this.x1 = x1;
+  this.y1 = y1;
+  this.x2 = x2;
+  this.y2 = y2;
+);
+
+// TODO: This needs to be optimized.
+function SliderGetPos(i)
+(
+  i = i | 0;
+  i ==  1 ? slider1  : i ==  2 ? slider2  : i ==  3 ? slider3  : i ==  4 ? slider4  :
+  i ==  5 ? slider5  : i ==  6 ? slider6  : i ==  7 ? slider7  : i ==  8 ? slider8  :
+  i ==  9 ? slider9  : i == 10 ? slider10 : i == 11 ? slider11 : i == 12 ? slider12 :
+  i == 13 ? slider13 : i == 14 ? slider14 : i == 15 ? slider15 : i == 16 ? slider16 :
+  i == 17 ? slider17 : i == 18 ? slider18 : i == 19 ? slider19 : i == 20 ? slider20 :
+  i == 21 ? slider21 : i == 22 ? slider22 : i == 23 ? slider23 : i == 24 ? slider24 :
+  i == 25 ? slider25 : i == 26 ? slider26 : i == 27 ? slider27 : i == 28 ? slider28 :
+  i == 29 ? slider29 : i == 30 ? slider30 : i == 31 ? slider31 : i == 32 ? slider32 :
+  i == 60 ? slider60 : i == 61 ? slider61 ;
+);
+
+// TODO: This needs to be optimized.
+function SliderSetPos(i, x)
+(
+  i = i | 0;
+  i ==  1 ? slider1  = x : i ==  2 ? slider2  = x : i ==  3 ? slider3  = x : i ==  4 ? slider4  = x :
+  i ==  5 ? slider5  = x : i ==  6 ? slider6  = x : i ==  7 ? slider7  = x : i ==  8 ? slider8  = x :
+  i ==  9 ? slider9  = x : i == 10 ? slider10 = x : i == 11 ? slider11 = x : i == 12 ? slider12 = x :
+  i == 13 ? slider13 = x : i == 14 ? slider14 = x : i == 15 ? slider15 = x : i == 16 ? slider16 = x :
+  i == 17 ? slider17 = x : i == 18 ? slider18 = x : i == 19 ? slider19 = x : i == 20 ? slider20 = x :
+  i == 21 ? slider21 = x : i == 22 ? slider22 = x : i == 23 ? slider23 = x : i == 24 ? slider24 = x :
+  i == 25 ? slider25 = x : i == 26 ? slider26 = x : i == 27 ? slider27 = x : i == 28 ? slider28 = x :
+  i == 29 ? slider29 = x : i == 30 ? slider30 = x : i == 31 ? slider31 = x : i == 32 ? slider32 = x :
+  i == 60 ? slider60 = x : i == 61 ? slider61 = x ;
+);
+
+function ms(x) ( floor(x / 1000 * srate); );
+function deg(x) ( x * 180 / M_PI; );
+function hz(x) ( M_2PI * x / srate; );
+function db(x) ( 2 ^ (x / 6); );
+
+function ArrayInit(ACount)
+(
+  this.Items = SWIPE.Memory;
+  this.Count = floor(ACount);
+  SWIPE.Memory += this.Count;
+);
+
+function ArrayGetItem(x)
+(
+  this.Items[x % this.Count];
+);
+
+function ArrayLinear(x) local(fl, fr)
+(
+  fr = x - (fl = floor(x));
+  this.Items[fl % this.Count] * (1 - fr) + this.Items[(fl + 1) % this.Count] * fr;
+);
+
+function GfxMoveTo(x, y) ( gfx_x = x; gfx_y = y; );
+function GfxSetColor(r, g, b, a) ( gfx_r = r; gfx_g = g; gfx_b = b; gfx_a = a; );
+function GfxSetColor(r, g, b) ( gfx_r = r; gfx_g = g; gfx_b = b; gfx_a = 1; );
+function GfxSetColor(x) ( gfx_r = gfx_g = gfx_b = x; gfx_a = 1; );
+function GfxFillRect(x1, y1, x2, y2) ( gfx_x = x1; gfx_y = y1; gfx_rectto(x2, y2); );
+
+function GfxDrawRect(x1, y1, x2, y2)
+(
+  x2 -= 1; y2 -= 1;
+  gfx_x = x1; gfx_y = y1;
+  gfx_lineto(x2, y1); gfx_lineto(x2, y2);
+  gfx_lineto(x1, y2); gfx_lineto(x1, y1);
+);
+
+function GfxDrawRect3D(x1, y1, x2, y2, up)
+(
+  x2 -= 1; y2 -= 1;
+  up ?
+  (
+    gfx_x = x1; gfx_y = y2;
+    gfx_r = gfx_g = gfx_b = 0.9; gfx_lineto(x1, y1); gfx_lineto(x2, y1);
+    gfx_r = gfx_g = gfx_b = 0.3; gfx_lineto(x2, y2); gfx_lineto(x1, y2);
+  ) : (
+    gfx_x = x1; gfx_y = y2;
+    gfx_r = gfx_g = gfx_b = 0.3; gfx_lineto(x1, y1); gfx_lineto(x2, y1);
+    gfx_r = gfx_g = gfx_b = 0.9; gfx_lineto(x2, y2); gfx_lineto(x1, y2);
+  )
+);
+
+function GfxDrawBevel(x1, y1, x2, y2, up)
+(
+  GfxDrawRect3D(x1, y1, x2, y2, up);
+  GfxDrawRect3D(x1 + 1, y1 + 1, x2 - 1, y2 - 1, !up);
+);
+
+function GfxGradRectVert(x1, y1, x2, y2, r1, g1, b1, r2, g2, b2) local(w, h)
+(
+  w = x2 - x1; h = y2 - y1;
+  gfx_gradrect(x1, y1, w, h, r1, g1, b1, 1, 0.0, 0.0, 0.0, 0.0,
+    (r2 - r1) / h, (g2 - g1) / h, (b2 - b1) / h, 0.0);
+);
+
+function GfxFillRect3D(x1, y1, x2, y2, up)
+(
+  GfxFillRect(x1, y1, x2, y2);
+  GfxDrawRect3D(x1, y1, x2, y2, up);
+);
+
+function GfxDrawPanel(x1, y1, x2, y2)
+(
+  gfx_r = gfx_g = gfx_b = 0.8;
+  gfx_x = x1; gfx_y = y1; gfx_rectto(x2, y2);
+  GfxDrawRect3D(x1, y1, x2, y2, TRUE);
+);
+
+function GfxFillRoundRect(x1, y1, x2, y2, ra)
+(
+  (x2 > x1) && (y2 > y1) ?
+  (
+    ra = min(min((x2 - x1) * 0.5, (y2 - y1) * 0.5), ra);
+    gfx_x = x1; gfx_y = y1 + ra; gfx_rectto(x2, y2 - ra);
+    gfx_x = x1 + ra; gfx_y = y1; gfx_rectto(x2 - ra, y1 + ra);
+    gfx_x = x1 + ra; gfx_y = y2 - ra; gfx_rectto(x2 - ra, y2);
+    x2 -= 1; y2 -= 1;
+    gfx_circle(x1 + ra, y1 + ra, ra, 1);
+    gfx_circle(x2 - ra, y1 + ra, ra, 1);
+    gfx_circle(x2 - ra, y2 - ra, ra, 1);
+    gfx_circle(x1 + ra, y2 - ra, ra, 1);
+  );
+);
+
+function GfxDrawRoundRect(x1, y1, x2, y2, ra)
+(
+  gfx_roundrect(x1, y1, x2 - x1, y2 - y1, ra);
+);
+
+function GfxFillRoundRect3D(x1, y1, x2, y2, ra, xx, yy, r, g, b)
+(
+  GfxSetColor(r * 0.7, g * 0.7, b * 0.7, 1);
+  GfxFillRoundRect(x1 + xx, y1 + yy, x2 + xx, y2 + yy, ra);
+  GfxSetColor(r, g, b, 1);
+  GfxFillRoundRect(x1, y1, x2, y2, ra);
+);
+
+function GfxDrawGrip(x1, y1, x2, y2, up, lr)
+(
+  gfx_r = gfx_g = gfx_b = 0.65;
+  GfxFillRect3D(x1, y1, x2, y2, up);
+  lr ?
+  (
+    (x2 - x1) > 16 ?
+    (
+      x1 = (x1 + x2) * 0.5;
+      GfxDrawRect3D(x1 - 1, y1 + 4, x1 + 1, y2 - 4, 0);
+      GfxDrawRect3D(x1 - 6, y1 + 4, x1 - 4, y2 - 4, 0);
+      GfxDrawRect3D(x1 + 4, y1 + 4, x1 + 6, y2 - 4, 0);
+    )
+  ) : (
+    (y2 - y1) > 16 ?
+    (
+      y1 = (y1 + y2) * 0.5;
+      GfxDrawRect3D(x1 + 4, y1 - 1, x2 - 4, y1 + 1, 0);
+      GfxDrawRect3D(x1 + 4, y1 - 6, x2 - 4, y1 - 4, 0);
+      GfxDrawRect3D(x1 + 4, y1 + 4, x2 - 4, y1 + 6, 0);
+     )
+  )
+);
+
+function GfxDrawGrip(x, y, w, h, x1, y1, x2, y2, up, lr)
+(
+  x1 += ((x2 - x1) - w) * x;
+  y1 += ((y2 - y1) - h) * y;
+  GfxDrawGrip(x1, y1, x1 + w, y1 + h, up, lr);
+);
+
+function GfxDrawSlider(x1, y1, x2, y2, up)
+(
+  up ? GfxGradRectVert(x1 + 2, y1 + 2, x2 - 2, y2 - 2, 0.2, 0.8, 0.2, 0.2, 0.2, 0.2) :
+       GfxGradRectVert(x1 + 2, y1 + 2, x2 - 2, y2 - 2, 0.4, 0.4, 0.4, 0.8, 0.8, 0.8) ;
+  gfx_r = gfx_g = gfx_b = 0.5;
+  GfxDrawRect(x1, y1, x2, y2);
+);
+
+function GfxDrawStr(x1, y1, x2, y2, s) local(w, h)
+(
+  gfx_measurestr(s, w, h);
+  gfx_x = (x1 + x2 - w) * 0.5;
+  gfx_y = (y1 + y2 - h) * 0.5;
+  gfx_drawstr(s);
+);
+
+function GfxDrawStr(x1, y1, x2, y2, s, x, y) local(w, h)
+(
+  gfx_measurestr(s, w, h);
+  gfx_x = x < 0 ? x1 : x > 0 ? x2 - w : (x1 + x2 - w) * 0.5;
+  gfx_y = y < 0 ? y1 : y > 0 ? y2 - h : (y1 + y2 - h) * 0.5;
+  gfx_drawstr(s);
+);
+
+function GfxDrawStatusBar(x1, y1, x2, y2, s, ax)
+(
+  //gfx_r = gfx_g = gfx_b = 0.1;
+	GfxDrawPanel(x1, y1, x2, y2);
+  gfx_r = gfx_g = gfx_b = 0;
+  gfx_setfont(3);
+  GfxDrawStr(x1 + 8, y1, x2 - 8, y2, s, ax, 0);
+);
+
+function GfxDrawStr3D(x, y, s)
+(
+  gfx_r = gfx_g = gfx_b = 0;
+  gfx_x = x + 2; gfx_y = y + 1; gfx_drawstr(s);
+  gfx_r = gfx_g = gfx_b = 1;
+  gfx_x = x; gfx_y = y; gfx_drawstr(s);
+);
+
+function GfxDrawLabel3D(x1, y1, x2, y2, s) local(w, h)
+(
+  gfx_measurestr(s, w, h);
+  x1 = (x1 + x2 - w) * 0.5;
+  y1 = (y1 + y2 - h) * 0.5;
+  GfxDrawStr3D(x1, y1, s);
+);
+
+function GfxDrawLabel3D(x1, y1, x2, y2, s, x, y) local(w, h)
+(
+  gfx_measurestr(s, w, h);
+  x = x < 0 ? x1 : x > 0 ? x2 - w : (x1 + x2 - w) * 0.5;
+  y = y < 0 ? y1 : y > 0 ? y2 - h : (y1 + y2 - h) * 0.5;
+  GfxDrawStr3D(x, y, s);
+);
+
+function GfxDrawWindowTitle(x1, y1, x2, y2, s)
+(
+  GfxGradRectVert(x1, y1, x2, (y1 + y2) * 0.5, 0.4, 0.4, 1.0, 0.5, 0.5, 0.5);
+  GfxGradRectVert(x1, (y1 + y2) * 0.5, x2, y2, 0.3, 0.3, 0.5, 0.1, 0.1, 0.2);
+  gfx_setfont(1);
+  GfxDrawLabel3D(x1 + 6, y1, x2 - 6, y2, s, -1, 0);
+);
+
+function GfxDrawTab(x1, y1, x2, y2, s, selected)
+(
+  gfx_r = gfx_g = gfx_b = selected ? 0.9 : 0.4;
+  !selected ? y1 += 2;
+  gfx_x = x1; gfx_y = y1; gfx_rectto(x2, y2 + 1);
+  selected ?
+  (
+    gfx_r = 0.8; gfx_g = 0.5; gfx_b = 0;
+    gfx_x = x1; gfx_y = y1; gfx_rectto(x2, y1 + 4);
+  );
+  gfx_r = gfx_g = gfx_b = 0;
+  gfx_x = x1; gfx_y = y2; gfx_lineto(x1, y1); gfx_lineto(x2, y1); gfx_lineto(x2, y2);
+  selected ?
+  (
+    gfx_r = gfx_g = gfx_b = 0;
+    gfx_b = 1;
+  ) : (
+    gfx_lineto(x1, y2);
+    gfx_r = gfx_g = gfx_b = 1;
+  );
+  GfxDrawStr(x1, y1, x2, y2, s);
+);
+
+function GetValue()
+(
+  this.Index > 0 ? SliderGetPos(this.Index) : this.Value;
+);
+
+function SetValue(AValue)
+(
+this.Value = max(min(AValue, this.Max), this.Min);
+  this.Index > 0 ? SliderSetPos(this.Index, this.Value);
+  SWIPE.WidgetChanged = TRUE;
+  gfx_rate = 30;
+);
+
+function SetPosScaled(AValue)
+(
+  this.SetValue(this.Min + (this.Max - this.Min) * AValue);
+);
+
+function GetPosScaled()
+(
+  (this.GetValue() - this.Min) / (this.Max - this.Min);
+);
+
+function WidgetInit(AIndex, AMin, AMax, AText, ALabel)
+(
+  this.Index = AIndex;
+  this.Min = AMin;
+  this.Max = AMax;
+  this.Text = AText;
+  this.Label = ALabel;
+  this.SetValue(this.GetValue());
+);
+
+function WidgetCall(x1, y1, x2, y2)
+(
+  this.Captured ? this.Captured = SWIPE.Captured = (mouse_cap & 1) :
+    !SWIPE.Captured && mouse_cap & 1 && mouse_x >= x1 && mouse_x < x2 && mouse_y >= y1 && mouse_y < y2 ?
+    (
+      SWIPE.Captured.X = mouse_x;
+      SWIPE.Captured.Y = mouse_y;
+      SWIPE.Captured = this.Captured = TRUE;
+    );
+);
+
+function LabelsHorzCall(x1, y1, x2, y2) local(s)
+(
+  gfx_setfont(3);
+  gfx_r = gfx_g = gfx_b = 0.1;
+  GfxDrawStr(x1 - 40, y1, x1, y2, this.Text);
+  GfxDrawStr(x2, y1, x2 + 80, y2, sprintf(s, "%.2f %s", this.GetValue(), this.Label));
+);
+
+function LabelsVertCall(x1, y1, x2, y2) local(s)
+(
+  gfx_setfont(3);
+  gfx_r = gfx_g = gfx_b = 0.1;
+  GfxDrawStr(x1, y1 - SWIPE.LineHeight, x2, y1, this.Text);
+  //GfxDrawStr(x1, y2, x2, y2 + SWIPE.LineHeight, sprintf(s, "%.2f%s", this.GetValue(), this.Label));
+  this.label == "Hz" ? (
+  	GfxDrawStr(x1, y2, x2, y2 + SWIPE.LineHeight, sprintf(s, "%.0f%s", this.GetValue(), this.Label));
+  ):(
+  	this.label == "ms" ? (
+  		GfxDrawStr(x1, y2, x2, y2 + SWIPE.LineHeight, sprintf(s, "%.1f%s", this.GetValue(), this.Label));
+  		):(
+  		GfxDrawStr(x1, y2, x2, y2 + SWIPE.LineHeight, sprintf(s, "%.2f%s", this.GetValue(), this.Label));
+  	);
+  	)
+);
+
+function SliderHorzCall(x1, y1, x2, y2) local(s, ts)
+(
+  x1 += 120; x2 -= 80;
+  ts = min(24, (x2 - x1) * 0.3);
+  x2 > x1 ?
+  (
+    this.Captured ? this.SetPosScaled((mouse_x - x1 - (ts * 0.5)) / (x2 - x1 - ts));
+    GfxDrawSlider(x1, y1 + 2, x2, y2 - 2, this.Captured);
+    GfxDrawGrip(this.GetPosScaled(), 0, ts, y2 - y1, x1, y1, x2, y2, 1, 1);
+    this.LabelsHorzCall(x1, y1, x2, y2);
+    this.WidgetCall(x1, y1, x2, y2);
+  );
+);
+
+function SliderVertCall(x1, y1, x2, y2) local(s, ts)
+(
+  y1 += SWIPE.LineHeight;
+  y2 -= SWIPE.LineHeight;
+  ts = min(24, (y2 - y1) * 0.3);
+  y2 > y1 ?
+  (
+    this.Captured ? this.SetPosScaled(1 - ((mouse_y - y1 - (ts * 0.5)) / (y2 - y1 - ts)));
+    GfxDrawSlider(x1 + 2, y1, x2 - 2, y2, this.Captured);
+    GfxDrawGrip(0, 1 - this.GetPosScaled(), x2 - x1, ts, x1, y1, x2, y2, 1, 0);
+    this.LabelsVertCall(x1, y1, x2, y2);
+    this.WidgetCall(x1, y1, x2, y2);
+  );
+);
+
+function KnobCall(x1, y1, x2, y2, col_r, col_g, col_b, bias) local(cx, cy, ra, i, xx, yy)
+(
+  y1 += SWIPE.LineHeight;
+  y2 -= SWIPE.LineHeight;
+  y2 > y1 ?
+  (
+    cx = (x1 + x2) * 0.5;
+    cy = (y2 + y1) * 0.5;
+    ra = (y2 - y1) * 0.5;
+    this.Captured ? this.SetPosScaled((0.5 + (atan2(mouse_x - cx, cy - mouse_y)) / ($pi * 1.5)));
+    //this.Captured ? this.SetPosScaled((0.5 +  this.y_tmp - mouse_y)/($pi * 50));
+    gfx_r = gfx_g = gfx_b = 0; gfx_a = 0.2;
+    gfx_circle(cx + 3, cy + 2, ra, 1);
+    col_r >= 0 ? (gfx_r=col_r*.7):(gfx_r=.7);
+    col_g >= 0 ? (gfx_g=col_g*.7):(gfx_g=.7);
+    col_b >= 0 ? (gfx_b=col_b*.7):(gfx_b=.7);
+    //gfx_r = gfx_g = gfx_b = 0.7;
+    gfx_a = 1.0; gfx_circle(cx, cy, ra, 1);
+    col_r != "" ? (gfx_r=col_r):(gfx_r=1);
+    col_g != "" ? (gfx_g=col_g):(gfx_g=1);
+    col_b != "" ? (gfx_b=col_b):(gfx_b=1);
+    //gfx_r = gfx_g = gfx_b = 1;
+    gfx_circle(cx, cy, ra * 0.7, 1);
+    col_r+col_b+col_g >=2.3 ? (
+    	gfx_r = 0; gfx_g = gfx_b = 0;
+    	):(
+    	gfx_r = 1; gfx_g = gfx_b = 1;
+    	);
+    i = (this.GetPosScaled() - 0.5) * $pi * 1.5;
+    bias ? (
+    	i=((log(this.GetPosScaled()*(exp(bias) - 1) + 1)/bias) - 0.5) * $pi * 1.5;
+    	);
+
+    xx =  sin(i) * ra;
+    yy = -cos(i) * ra;
+    gfx_line(cx + xx * 0.2, cy + yy * 0.2, cx + xx, cy + yy);
+    gfx_r = gfx_g = gfx_b = 0; gfx_circle(cx, cy, ra, 0);
+    this.LabelsVertCall(x1, y1, x2, y2);
+    this.WidgetCall(x1, y1, x2, y2);
+    this.y_tmp = mouse_y;
+  )
+);
+
+function PageControlInit(x1, y1, x2, y2)
+(
+  this.RectInit(x1, y1, x2, y2);
+  y1 += 22;
+  gfx_r = gfx_g = gfx_b = 0; gfx_a = 0.1;
+  GfxFillRect(x1 + 2, y1 + 2, x2 + 2, y2 + 2);
+  gfx_r = gfx_g = gfx_b = 0.6; gfx_a = 1;
+  GfxFillRect(x1, y1, x2, y2);
+  gfx_r = gfx_g = gfx_b = 0;
+  GfxDrawRect(x1, y1, x2, y2);
+);
+
+function PageControlCall(i, x1, y1, x2, y2, s)
+(
+  SWIPE.Mouse.Clicked && SWIPE.Mouse.PointInside(x1, y1, x2, y2) ? this.SetValue(i);
+  GfxDrawTab(x1, y1, x2, y2, s, this.GetValue() == i);
+);
+
+function PageControlCall(i, s)
+(
+  this.PageControlCall(i, this.x1 + i * 70, this.y1, this.x1 + ((i + 1) * 70) - 5, this.y1 + 22, s);
+);
+
+function PageControlDone()
+(
+  0;
+);
+
+function EffectFoot(ATitle, AStatus, x1, y1, x2, y2, r, g, b)
+(
+  GfxDrawStatusBar(x1, y2 - 24, x2, y2, AStatus, 1);
+  GfxDrawWindowTitle(x1, y1, x2, y1 + 24, ATitle);
+);
+
+function EffectInit(AHeader, AFooter)
+(
+  this.Header = AHeader;
+  this.Footer = AFooter;
+  GfxGradRectVert(0, 0, gfx_w, gfx_h, 0.1, 0.1, 0.1, 0.4, 0.4, 0.4);
+  gfx_setfont(2);
+);
+
+function EffectDone()
+(
+  EffectFoot(this.Header, this.Footer, 2, 2, gfx_w - 2, gfx_h - 2, 0.8, 0.8, 0.8);
+  GfxDrawBevel(0, 0, gfx_w, gfx_h, TRUE);
+);
+
+function EffectBasic(AHeader, AFooter)
+(
+  this.EffectInit(AHeader, AFooter);
+
+  !this.PageControl ?
+  (
+    this.PageControl = TRUE;
+    this.PageControl.WidgetInit(0, 0, 0, "", "");
+  );
+  //this.PageControl.PageControlInit(10, 35, gfx_w - 10, gfx_h - 10);
+  this.PageControl.PageControlInit(10, 010, gfx_w - 10, gfx_h - 35);
+  //this.PageControl.PageControlCall(0, "Settings");
+  this.PageControl.PageControlDone();
+);
+
+function GfxDrawNameString(x1, y1, x2, y2, name, value)
+(
+  GfxDrawRect3D(x1 + 94, y1, x2, y2, FALSE);
+  gfx_r = gfx_g = gfx_b = 0.1;
+  GfxDrawStr(x1, y1, x1 + 90, y2, name, 1, 0);
+  gfx_r = gfx_g = 0; gfx_b = 1;
+  GfxDrawStr(x1 + 98, y1, x2, y2, value, -1, 0);
+);
+
+function GfxDrawNameNumber(x1, y1, x2, y2, name, value) local(s)
+(
+  GfxDrawNameString(x1, y1, x2, y2, name, sprintf(s, "%.2f", value));
+);
+
+function SWIPEAbout() local(y, yy, x2)
+(
+  this.EffectInit(this.Name, this.Slogan);
+  GfxDrawPanel(10, 40, gfx_w - 10, gfx_h - 40);
+  x2 = gfx_w - 30;
+  y = 50; yy = 21;
+  gfx_setfont(3);
+  GfxDrawNameString(30, y, x2, y + 19, "Copyright:", this.Copyright); y += yy;
+  GfxDrawNameNumber(30, y, x2, y + 19, "Version:", this.Version); y += yy;
+  GfxDrawNameString(30, y, x2, y + 19, "Website:", this.Website); y += yy;
+  GfxDrawNameNumber(30, y, x2, y + 19, "Tempo:", tempo); y += yy;
+  GfxDrawNameNumber(30, y, x2, y + 19, "Sample Rate:", srate); y += yy;
+  GfxDrawNameNumber(30, y, x2, y + 19, "Channel Count:", num_ch); y += yy;
+  GfxDrawNameNumber(30, y, x2, y + 19, "Block Size:", samplesblock); y += yy;
+  GfxDrawNameNumber(30, y, x2, y + 19, "String Count:", str_count); y += yy;
+  this.EffectDone();
+);
+
+function SWIPE(AMinWidth, AMinHeight)
+(
+  this.Name = "SWIPE";
+  this.Slogan = "\"Simple Widget Interface for Programing Effects\"";
+  this.Version = 0.1;
+  this.Author = "Derek John Evans";
+  this.Copyright = "Copyright (C) 2015 Derek John Evans";
+  this.Website = "http://www.wascal.net/music/";
+
+  this.Mouse.Clicked = (mouse_cap & 1) && !(this.Mouse.Cap & 1);
+  this.Mouse.X = mouse_x;
+  this.Mouse.Y = mouse_y;
+  this.Mouse.Cap = mouse_cap;
+  this.LineHeight = 21;
+  this.Memory = 1;
+
+  gfx_rate = 4;
+  gfx_clear = 0x444444;
+  gfx_w = max(gfx_w, AMinWidth);
+  gfx_h = max(gfx_h, AMinHeight);
+
+  gfx_setfont(1, "verdana", 17);
+  gfx_setfont(2, "verdana", 15);
+  gfx_setfont(3, "verdana", 13);
+  gfx_setfont(4, "verdana", 11);
+  gfx_setfont(5, "verdana", 32);
+
+  this.Mouse.Clicked && this.Mouse.PointInside(0, 0, gfx_w-300, 24) ? this.ShowAbout = !this.ShowAbout;
+  this.ShowAbout ? this.SWIPEAbout();
+  !this.ShowAbout;
+);

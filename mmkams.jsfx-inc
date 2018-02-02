@@ -1,0 +1,255 @@
+@init
+// Copyright 2006, Thomas Scott Stillwell
+function init_co1175()(
+  this.attime=0.010;
+  this.reltime=0.100;
+  this.ratio=0;
+  this.cratio=0;
+  this.rundb=0;
+  this.overdb=0;
+  this.ratatcoef = exp(-1/(0.00001 * srate));
+  this.ratrelcoef = exp(-1/(0.5 * srate));
+  this.atcoef=exp(-1/(this.attime * srate));
+  this.relcoef=exp(-1/(this.reltime * srate));
+  this.mix=1;
+  this.gr_meter=1;
+  this.gr_meter_decay = exp(1/(1*srate));
+);
+
+function set_co1175(treshold rat gain attack release mix)
+(
+  this.thresh = treshold;
+  this.threshv = exp(this.thresh * db2log);
+  this.ratio = (rat==0 ? 4 : (rat==1 ? 8 : (rat == 2 ? 12 : (rat == 3 ? 20 : 20 ))));
+  rat == 4 ? (this.allin=1; this.cratio=20;) : (this.allin=0; this.cratio = this.ratio;);
+  this.cthresh = (this.softknee ? (this.thresh -3) : this.thresh);
+  this.cthreshv = exp(this.cthresh * db2log);
+  this.makeup = gain;
+  this.makeupv = exp((this.makeup+this.autogain) * db2log);
+  this.attime = attack / 1000000;
+  this.reltime = release / 1000;
+  this.atcoef=exp(-1/(this.attime * srate));
+  this.relcoef=exp(-1/(this.reltime * srate));
+  this.mix=mix/100;
+);
+
+function do_co1175(inL inR)(
+  this.ospl0 = inL;
+  this.ospl1 = inR;
+  this.aspl0 = abs(inL);
+  this.aspl1 = abs(inR);
+  this.maxspl = max(this.aspl0, this.aspl1);
+  this.maxspl = this.maxspl * this.maxspl;
+  this.runave = this.maxspl + this.rmscoef * (this.runave -  this.maxspl);
+  this.det = sqrt(max(0,this.runave));
+
+  this.overdb = 2.08136898 * log(this.det/this.cthreshv) * log2db;
+  this.overdb = max(0,this.overdb);
+
+  this.overdb - this.rundb > 5 ? (this.averatio = 4;);
+
+  this.overdb > this.rundb ? (
+    this.rundb = this.overdb + this.atcoef * (this.rundb - this.overdb);
+    this.runratio = this.averatio + this.ratatcoef * (this.runratio - this.averatio);
+  ) : (
+    this.rundb = this.overdb + this.relcoef * (this.rundb - this.overdb);
+    this.runratio = this.averatio + this.ratrelcoef * (this.runratio - this.averatio);
+    );
+  this.overdb = this.rundb;
+  this.averatio = this.runratio;
+
+  this.allin ? ( this.cratio = 12 + this.averatio; ) : ( this.cratio = this.ratio; );
+
+  this.gr = -this.overdb * (this.cratio-1)/this.cratio;
+  this.grv = exp(this.gr * db2log);
+
+  this.runmax = this.maxover + this.relcoef * (this.runmax - this.maxover);  // highest peak for setting att/rel decays in reltime
+  this.maxover = this.runmax;
+
+  this.grv < this.gr_meter ? this.gr_meter=this.grv : (
+    this.gr_meter*=this.gr_meter_decay;
+    this.gr_meter>1 ? this.gr_meter=1;
+    );
+
+  this.co1175_outL = inL * this.grv * this.makeupv * this.mix;
+  this.co1175_outR = inR * this.grv * this.makeupv * this.mix;
+
+  this.co1175_outL += this.ospl0 * (1-this.mix);
+  this.co1175_outR += this.ospl1 * (1-this.mix);
+);
+
+//author: LOSER
+function set_steh(wl cross wh)(
+  this.widthLP = wl / 200;
+  this.width = wh / 200;
+
+  this.freq = min(cross,srate);
+  this.x = exp(-2.0*$pi*this.freq/srate);
+  this.a0 = 1.0-this.x;
+  this.b1 = -this.x;
+);
+
+function do_steh(inL inR)(
+  this.s0 = inL;
+  this.s1 = inR;
+  this.steh_outL=inL;
+  this.steh_outR=inR;
+
+  this.steh_outL = (this.tmpl = this.a0*this.steh_outL - this.b1*this.tmpl + cDenorm);
+  this.steh_outR = (this.tmpr = this.a0*this.steh_outR - this.b1*this.tmpr + cDenorm);
+
+  this.s0 -= this.steh_outL;
+  this.s1 -= this.steh_outR;
+
+  this.mono = (this.s0 + this.s1)/2;
+  this.stereo = (this.s0 - this.s1);
+  this.s0 = (this.mono + this.stereo * this.width) / max(this.width,1);
+  this.s1 = (this.mono - this.stereo * this.width) / max(this.width,1);
+
+  this.monoLP = (this.steh_outL + this.steh_outR)/2;
+  this.stereoLP = (this.steh_outL - this.steh_outR);
+  this.steh_outL = (this.monoLP + this.stereoLP * this.widthLP) / max(this.widthLP,1);
+  this.steh_outR = (this.monoLP - this.stereoLP * this.widthLP) / max(this.widthLP,1);
+
+  this.steh_outL += this.s0;
+  this.steh_outR += this.s1;
+);
+
+//author: LOSER
+function set_sat(satu)(
+  this.satu=satu;
+  this.foo=satu/200*$pi;
+  this.bar = sin(satu/200*$pi);
+);
+
+function do_sat(inL inR)(
+  this.satu >0 ? (
+    this.sat_outL = min(max( sin(max(min(inL,1),-1)*this.foo)/this.bar ,-1) ,1);
+    this.sat_outR = min(max( sin(max(min(inR,1),-1)*this.foo)/this.bar ,-1) ,1);
+  ):(
+    this.sat_outL=inL;
+    this.sat_outR=inR;
+  );
+);
+
+//author: LOSER
+function set_zcrossing(tresh ceiling bsize)(
+  this.thresh = 2^(tresh/6);
+  this.buffer = 0;
+  this.pdc_delay = this.bufSize = floor(min(bsize/1000 * srate,500000));
+  this.bufOffs = this.bufSize + 1;
+  this.pdc_bot_ch=0; this.pdc_top_ch=2;
+  this.ceiling = 2^(ceiling/6);
+  this.volume = this.ceiling/this.thresh;
+);
+
+function do_zcrossing(inL inR)(
+  this.buffer[this.bufPos] = inL;
+  // track zero crossings
+  inL > 0 ? this.s0=1 : this.s0=0;
+
+  this.maxSpl0 = max ( this.maxSpl0, abs(inL));
+
+  this.s0 != this.lastS0 ? (
+    this.maxSpl0 > this.thresh ? this.gain=this.thresh/this.maxSpl0 : this.gain=1;
+    this.adjPos = this.length0;
+
+    loop(this.length0+1,
+      this.buffer[this.bufPos - this.adjPos + ((this.bufPos-this.adjPos)<0 ? this.bufSize+1:0;) ] *= this.gain;
+      (this.adjPos -= 1);
+    );
+
+    this.length0 = -1;
+    this.maxSpl0 = 0;
+  );
+  (this.length0+=1) > this.bufSize ? this.length0 = this.maxSpl1 = 0;
+  this.lastS0 = this.s0;
+
+  this.bufOffs[this.bufPos] = inR;
+
+  // track zero crossings
+  inR > 0 ? this.s1=1 : this.s1=0;
+
+  this.maxSpl1 = max ( this.maxSpl1, abs(inR));
+
+  this.s1 != this.lastS1 ? (
+    this.maxSpl1 > this.thresh ? this.gain=this.thresh/this.maxSpl1 : this.gain=1;
+    this.adjPos = this.length1;
+
+    loop(this.length1+1,
+      this.bufOffs[this.bufPos - this.adjPos + ((this.bufPos-this.adjPos)<0 ? this.bufSize+1:0;) ] *= this.gain;
+      (this.adjPos -= 1);
+    );
+
+    this.length1 = -1;
+    this.maxSpl1 = 0;
+  );
+  (this.length1+=1) > this.bufSize ? this.length1 = this.maxSpl1 = 0;
+  this.lastS1 = this.s1;
+
+  (this.bufPos += 1) > this.bufSize ? this.bufPos = 0 ;
+
+  this.zc_outL = this.buffer[this.bufPos]*this.volume;
+  this.zc_outR = this.bufOffs[this.bufPos]*this.volume;
+
+  // Can comment this out for more speed ;)
+  this.zc_outL = min(max(this.zc_outL,-1),1);
+  this.zc_outR = min(max(this.zc_outR,-1),1);
+);
+
+//author: Stillwell
+function init_ehlc()(
+  this.attime=0.004;
+  this.reltime=0.200;
+  this.atcoef=exp(-1/(this.attime * srate));
+  this.relcoef=exp(-1/(this.reltime * srate));
+);
+
+function set_ehlc(tresh ceiling release)(
+  this.thresh=exp(thresh * db2log);
+  this.threshdb=thresh;
+  this.ceiling=exp(ceiling * db2log);
+  this.ceildb=ceiling;
+  this.makeup=exp((this.ceildb-this.threshdb) * db2log);
+  this.makeupdb=this.ceildb-this.threshdb;
+  this.peakdb = this.ceildb+25;
+  this.peaklvl = exp(this.peakdb * db2log);
+  this.release=release/1000;
+  this.release==0 ? (this.reltime = this.overdb / 125) : (this.reltime = this.release);
+  this.relcoef=exp(-1/(this.reltime * srate));
+);
+
+function do_ehlc(inL inR)(
+  this.ehlc_outL=inL*this.makeup;
+  this.ehlc_outR=inR*this.makeup;
+
+  this.abs0=abs(this.ehlc_outL);
+  this.abs1=abs(this.ehlc_outR);
+  this.overdbv = max(this.abs0, this.abs1);
+  this.overdb = 2.08136898 * log(this.overdbv) * log2db - this.ceilingdb;
+
+  this.overdb > this.rundb ? (                                  // calculate overshoot (and thus GR)
+    this.rundb = this.overdb + this.atcoef * (this.rundb - this.overdb);       //    use attack and release to
+  ) : (                                               //    smoothly scale gain reduction
+    this.rundb = this.overdb + this.relcoef * (this.rundb - this.overdb);
+  );
+  this.overdb = max(0,this.rundb);
+
+  this.release == 0 ? (                                    // Auto-release?  Compute release time
+    this.overdb > this.maxover ? (
+      this.maxover = this.overdb;
+      this.reltime = this.overdb / 125;                         // release at constant 125 dB/sec.
+      this.relcoef = exp(-1/(this.reltime * srate));
+    );
+    this.runmax = this.maxover + this.relcoef * (this.runmax - this.maxover);  // highest peak for setting att/rel decays in reltime
+    this.maxover = this.runmax;
+  );
+
+  this.gr = exp(this.overdb * db2log);
+
+  this.ehlc_outL*=this.gr;
+  this.ehlc_outR*=this.gr;
+
+  this.ehlc_outL=min(this.ceiling,abs(this.ehlc_outL))*sign(this.ehlc_outL);             // If it gets past the limiter, whack it.
+  this.ehlc_outR=min(this.ceiling,abs(this.ehlc_outR))*sign(this.ehlc_outR);             // since we don't lookahead, some stuff will
+);

@@ -1,0 +1,733 @@
+@init
+
+//Parts of cookdsp
+/////////////////////////////////////////////////////////////////
+// Copyright (c) - 2014 - Olivier Belanger                     //
+// Permission to use, copy, modify, and/or distribute this     //
+// software for any purpose with or without fee is hereby      //
+// granted, provided that the above copyright notice and this  //
+// permission notice appear in all copies. CookDSP IS PROVIDED //
+// "AS IS", WITHOUT WARRANTY OF ANY KIND FROM THE AUTHOR.      //
+/////////////////////////////////////////////////////////////////
+function memalloc(size)
+(
+    __memory_index = __memory_next + 8;
+    __memory_next = __memory_index + size;
+    memset(__memory_index, 0.0, size);
+    __memory_index;
+);
+
+function memalloc(size, noreinit)
+(
+    noreinit == 0 ? (
+        __memory_index = __memory_next + 8;
+        __memory_next = __memory_index + size;
+        memset(__memory_index, 0.0, size);
+    ) : (
+        __memory_index = __memory_next + 8;
+        __memory_next = __memory_index + size;
+    );
+    __memory_index;
+);
+
+function _eq_compute_peak_coeffs()
+(
+    amul_ = this.alpha * this.a;
+    adiv_ = this.alpha / this.a;
+    this.b0 = 1.0 + amul_;
+    this.b1 = this.a1 = -2.0 * this.c;
+    this.b2 = 1.0 - amul_;
+    this.a0 = 1 + adiv_;
+    this.a2 = 1 - adiv_;
+);
+
+function _eq_compute_ls_coeffs()
+(
+    sqrt2a_ = sqrt(this.a * 2.0) * this.alpha;
+    amin1c_ = (this.a - 1.0) * this.c;
+    aadd1c_ = (this.a + 1.0) * this.c;
+    this.b0 = this.a * ((this.a + 1.0) - amin1c_ + sqrt2a_);
+    this.b1 = 2.0 * this.a * ((this.a - 1.0) - aadd1c_);
+    this.b2 = this.a * ((this.a + 1.0) - amin1c_ - sqrt2a_);
+    this.a0 = (this.a + 1.0) + amin1c_ + sqrt2a_;
+    this.a1 = -2.0 * ((this.a - 1.0) + aadd1c_);
+    this.a2 = (this.a + 1.0) + amin1c_ - sqrt2a_;
+);
+
+function _eq_compute_hs_coeffs()
+(
+    sqrt2a_ = sqrt(this.a * 2.0) * this.alpha;
+    amin1c_ = (this.a - 1.0) * this.c;
+    aadd1c_ = (this.a + 1.0) * this.c;
+    this.b0 = this.a * ((this.a + 1.0) + amin1c_ + sqrt2a_);
+    this.b1 = -2.0 * this.a * ((this.a - 1.0) + aadd1c_);
+    this.b2 = this.a * ((this.a + 1.0) + amin1c_ - sqrt2a_);
+    this.a0 = (this.a + 1.0) - amin1c_ + sqrt2a_;
+    this.a1 = 2.0 * ((this.a - 1.0) - aadd1c_);
+    this.a2 = (this.a + 1.0) - amin1c_ - sqrt2a_;
+);
+
+function _eq_compute_vars(freq q boost)
+(
+    freq <= 1 ? freq = 1 : freq > this.ny ? freq = this.ny;
+    this.freq = freq;
+    q < 0.1 ? q = 0.1;
+    this.q = q;
+    this.boost = boost;
+
+    this.a = pow(10, boost/40);
+    w0 = this.twopi * this.freq / srate;
+    this.c = cos(w0);
+    this.alpha = sin(w0) / (2 * this.q);
+    this.type == 0 ? this._eq_compute_peak_coeffs() :
+    this.type == 1 ? this._eq_compute_ls_coeffs() :
+    this.type == 2 ? this._eq_compute_hs_coeffs();
+);
+
+function eq(freq q boost type)
+(
+    this.x1 = this.x2 = this.y1 = this.y2 = 0.0;
+    this.twopi = $pi * 2;
+    this.ny = srate * 0.49;
+    type < 0 ? type = 0 : type > 2 ? type = 2;
+    this.type = type;
+    this._eq_compute_vars(freq, q, boost);
+);
+
+function eq_set_freq(freq)
+(
+    freq != this.freq ? this._eq_compute_vars(freq, this.q, this.boost);
+);
+
+function eq_set_q(q)
+(
+    q != this.q ? this._eq_compute_vars(this.freq, q, this.boost);
+);
+
+function eq_set_boost(boost)
+(
+    boost != this.boost ? this._eq_compute_vars(this.freq, this.q, boost);
+);
+
+function eq_set_type(type)
+(
+    type != this.type ? (
+        type < 0 ? type = 0 : type > 2 ? type = 2;
+        this.type = type;
+        this._eq_compute_vars(this.freq, this.q, this.boost);
+    );
+);
+
+function eq_do(signal)
+(
+    tmp_ = (this.b0 * signal + this.b1 * this.x1 + this.b2 * this.x2 - this.a1 * this.y1 - this.a2 * this.y2) / this.a0;
+    this.x2 = this.x1; this.x1 = signal; this.y2 = this.y1; this.y1 = tmp_;
+    tmp_;
+);
+function delay(size)
+  (
+      this.buf = memalloc(size);
+      this.size = size;
+      this.curpos = 0;
+      this.curval = 0;
+  );
+
+  function delay_write(signal)
+  (
+      this.buf[this.curpos] = signal;
+      this.buf[this.size] = this.buf[0];
+      this.buf[this.size+1] = this.buf[1];
+      this.buf[-1] = this.buf[this.size-1];
+      this.curpos += 1;
+      this.curpos == this.size ? this.curpos = 0;
+  );
+
+  function delay_read(delay)
+  (
+      delay >= 0 && delay < this.size ? (
+          pos_ = this.curpos - delay;
+          pos_ < 0 ? pos_ += this.size;
+          this.curval = this.buf[floor(pos_)];
+      );
+      this.curval;
+  );
+
+  function delay_fread(delay)
+  (
+      pos_ = this.curpos - delay;
+      pos_ < 0 ? pos_ += this.size;
+      this.curval = this.buf[floor(pos_)];
+      this.curval;
+  );
+
+  function delay_sread(delay)
+  (
+      this.delay_read(delay * srate);
+  );
+
+  function delay_fsread(delay)
+  (
+      this.delay_fread(delay * srate);
+  );
+
+  function delay_read2(delay)
+  (
+      delay >= 0 && delay < this.size ? (
+          pos_ = this.curpos - delay;
+          pos_ < 0 ? pos_ += this.size;
+          ip_ = floor(pos_);
+          this.curval = this.buf[ip_] + (this.buf[ip_+1] - this.buf[ip_]) * (pos_ - ip_);
+      );
+      this.curval;
+  );
+
+  function delay_fread2(delay)
+  (
+      pos_ = this.curpos - delay;
+      pos_ < 0 ? pos_ += this.size;
+      ip_ = floor(pos_);
+      this.curval = this.buf[ip_] + (this.buf[ip_+1] - this.buf[ip_]) * (pos_ - ip_);
+      this.curval;
+  );
+
+  function delay_sread2(delay)
+  (
+      this.delay_read2(delay * srate);
+  );
+
+  function delay_fsread2(delay)
+  (
+      this.delay_fread2(delay * srate);
+  );
+
+  function delay_read3(delay)
+  (
+      delay >= 0 && delay < this.size ? (
+          pos_ = this.curpos - delay;
+          pos_ < 0 ? pos_ += this.size;
+          i_ = floor(pos_);
+          f_ = pos_ - i_;
+          x0_ = this.buf[i_-1]; x1_ = this.buf[i_];
+          x2_ = this.buf[i_+1]; x3_ = this.buf[i_+2];
+          a3_ = f_ * f_; a3_ -= 1.0; a3_ *= (1.0 / 6.0);
+          a2_ = (f_ + 1.0) * 0.5; a0_ = a2_ - 1.0;
+          a1_ = a3_ * 3.0; a2_ -= a1_; a0_ -= a3_; a1_ -= f_;
+          a0_ *= f_; a1_ *= f_; a2_ *= f_; a3_ *= f_; a1_ += 1.0;
+          this.curval = a0_*x0_ + a1_*x1_ + a2_*x2_ + a3_*x3_;
+      );
+      this.curval;
+  );
+
+  function delay_fread3(delay)
+  (
+      pos_ = this.curpos - delay;
+      pos_ < 0 ? pos_ += this.size;
+      i_ = floor(pos_);
+      f_ = pos_ - i_;
+      x0_ = this.buf[i_-1]; x1_ = this.buf[i_];
+      x2_ = this.buf[i_+1]; x3_ = this.buf[i_+2];
+      a3_ = f_ * f_; a3_ -= 1.0; a3_ *= (1.0 / 6.0);
+      a2_ = (f_ + 1.0) * 0.5; a0_ = a2_ - 1.0;
+      a1_ = a3_ * 3.0; a2_ -= a1_; a0_ -= a3_; a1_ -= f_;
+      a0_ *= f_; a1_ *= f_; a2_ *= f_; a3_ *= f_; a1_ += 1.0;
+      this.curval = a0_*x0_ + a1_*x1_ + a2_*x2_ + a3_*x3_;
+      this.curval;
+  );
+
+  function delay_sread3(delay)
+  (
+      this.delay_read3(delay * srate);
+  );
+
+  function delay_fsread3(delay)
+  (
+      this.delay_fread3(delay * srate);
+  );
+  function lop(freq)
+  (
+    this.y0 = 0;
+    this.ny = srate * 0.49;
+    freq < 0.1 ? freq = 0.1 : freq > this.ny ? freq = this.ny;
+    this.freq = freq;
+    this.c = exp(-2 * $pi * this.freq / srate);
+  );
+
+  function lop_set_freq(freq)
+  (
+    freq < 0.1 ? freq = 0.1 : freq > this.ny ? freq = this.ny;
+    this.freq = freq;
+    this.c = exp(-2 * $pi * this.freq / srate);
+  );
+
+  function lop_do(signal)
+  (
+    this.y0 = signal + (this.y0 - signal) * this.c;
+    this.y0;
+  );
+  function follow(freq)
+  (
+      this.lp.lop(freq);
+      this.freq = this.lp.freq;
+  );
+
+  function follow_set_freq(freq)
+  (
+      this.lp.lop_set_freq(freq);
+      this.freq = this.lp.freq;
+  );
+
+  function follow_do(signal)
+  (
+      this.lp.lop_do(abs(signal));
+  );
+
+  //From Witti's softknee compressor
+  function compressor_do(inL inR)
+  (
+      det = max(abs(inL),abs(inR));
+      det += 0.000000000001;
+      env = det >= env ? det : det+envelope_decay*(env-det);
+
+      diff = abs(det-threshold);
+      tmp = 1 + (ratio -1) * min(diff,1);
+      soft ? (
+        transfer_A = (1/tmp)-1;
+        ):(
+        transfer_A = (1/ratio)-1;
+        );
+      transfer_B = output * pow(threshold,-transfer_A);
+
+      transfer_gain = env > threshold ? pow(env,transfer_A)*transfer_B:output;
+      gain = transfer_gain < gain ?
+        transfer_gain+attack*(gain-transfer_gain) :
+        transfer_gain+release*(gain-transfer_gain);
+
+      this.out0 = inL * gain*vol;
+      this.out1 = inR * gain*vol;
+
+      gr = log(gain)*log2dB;
+      grv = exp(gr * db2log);
+      grv < gr_meter ? gr_meter=grv : ( gr_meter*=gr_meter_decay; gr_meter>1?gr_meter=1; );
+      grmin = min( min(gr,gr) , grmin);
+  );
+
+  //From Witti's comp_gate
+  function gt_set(thresh att rel envd)(
+  	this.threshold = 10^(thresh/20);
+  	this.attack = exp(-1/(att/1000*srate));
+  	this.release = exp(-1/(rel/1000*srate));
+  	this.envelope_decay = exp(-1/(envd/1000*srate));
+  );
+  function gt_do(inl inr)(
+  	/*this.threshold = 10^(slider16/20);
+  	this.attack = exp(-1/(slider17/1000*srate));
+  	this.release = exp(-1/(slider18/1000*srate));
+  	this.envelope_decay = exp(-1/(slider19/1000*srate));*/
+  	this.det = max(abs(inL),abs(inR));
+  	this.det += 0.000000000001;
+  	this.env = this.det >= this.env ? this.det : this.det+this.envelope_decay*(this.env-this.det);
+  	this.transfer_gain = this.env > this.threshold ? pow(this.env,0):0;
+  	this.gain = this.transfer_gain > this.gain ? (
+  		this.transfer_gain+this.attack*(this.gain-this.transfer_gain);
+  		):(
+  		this.transfer_gain+this.release*(this.gain-this.transfer_gain);
+  	);
+  this.outl = inL * this.gain;
+  this.outr = inR * this.gain;
+  );
+
+//From LOSER's saturation
+  function saturation_set(sat)(
+    this.foo=sat/150*$pi;
+    this.bar = sin(sat/150*$pi);
+  );
+
+  function Saturation_do(in)(
+    this.foo!=0 & this.bar!=0 ? (
+      this.out=min(max( sin(max(min(in,1),-1)*this.foo)/this.bar ,-1) ,1);
+      ):(
+      this.out=in;
+      );
+  );
+//From Schwa's Clipper/limiter
+  function Limiter_do (in)(
+    limit_dB = slider27;
+    threshold_dB = baseline_threshold_dB + limit_dB;
+    this.dB = amp_dB * log(abs(in)) + boost_dB;
+
+    (this.dB > threshold_dB) ? (
+      this.over_dB = this.dB - threshold_dB;
+      this.over_dB = a * this.over_dB + b * this.over_dB * this.over_dB;
+      this.dB = min(threshold_dB + this.over_dB, limit_dB);
+    );
+
+    this.limit=this.over_dB;
+    this.over_dB=0;
+    this.lim_out= exp(this.dB / amp_dB) * sign(in);
+  );
+
+// Copyright 2006, Thomas Scott Stillwell
+// All rights reserved.
+//
+//Redistribution and use in source and binary forms, with or without modification, are permitted
+//provided that the following conditions are met:
+//
+//Redistributions of source code must retain the above copyright notice, this list of conditions
+//and the following disclaimer.
+//
+//Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+//and the following disclaimer in the documentation and/or other materials provided with the distribution.
+//
+//The name of Thomas Scott Stillwell may not be used to endorse or
+//promote products derived from this software without specific prior written permission.
+//
+//THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+//IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+//FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+//BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+//PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+//THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+function hpf_set(freq)(
+  this.a1 = 1;
+  this.s1 = 1;
+  this.q1 = 1 / (sqrt((this.a1 + 1/this.a1)*(1/this.s1 - 1) + 2));
+  this.w01 = 2 * $pi * freq/srate;
+  this.cosw01 = cos(this.w01);
+  this.sinw01 = sin(this.w01);
+  this.alpha1 = this.sinw01 / (2 * this.q1);
+
+  this.b01 = (1 + this.cosw01)/2;
+  this.b11 = -(1 + this.cosw01);
+  this.b21 = (1 + this.cosw01)/2;
+  this.a01 = 1 + this.alpha1;
+  this.a11 = -2 * this.cosw01;
+  this.a21 = 1 - this.alpha1;
+  this.b01 /= this.a01;
+  this.b11 /= this.a01;
+  this.b21 /= this.a01;
+  this.a11 /= this.a01;
+  this.a21 /= this.a01;
+);
+
+function hpf_do(in,n_hpf)(
+  this.hpf_out = this.b01 * in + this.b11 * this.xl11 + this.b21 * this.xl21 - this.a11 * this.yl11 - this.a21 * this.yl21;
+  this.xl21 = this.xl11;
+  this.xl11 = in;
+  this.yl21 = this.yl11;
+  this.yl11 = this.hpf_out;
+  n_hpf>=1 ?(
+  	this.in2=this.hpf_out;
+    this.hpf_out = this.b01 * this.in2 + this.b11 * this.xl12 + this.b21 * this.xl22 - this.a11 * this.yl12 - this.a21 * this.yl22;
+  	this.xl22 = this.xl12;
+  	this.xl12 = this.in2;
+  	this.yl22 = this.yl12;
+  	this.yl12 = this.hpf_out;
+  	);
+  this.hpf_out;
+);
+
+function lpf_set(freq)(
+	this.a3 = 1;
+  this.s3 = 1;
+  this.q3 = 1 / (sqrt((this.a3 + 1/this.a3)*(1/this.s3 - 1) + 2));
+  this.w03 = 2 * $pi * freq/srate;
+  this.cosw03 = cos(this.w03);
+  this.sinw03 = sin(this.w03);
+  this.alpha3 = this.sinw03 / (2 * this.q3);
+
+  this.b03 = (1 - this.cosw03)/2;
+  this.b13 = (1 - this.cosw03);
+  this.b23 = (1 - this.cosw03)/2;
+  this.a03 = 1 + this.alpha3;
+  this.a13 = -2 * this.cosw03;
+  this.a23 = 1 - this.alpha3;
+  this.b03 /= this.a03;
+  this.b13 /= this.a03;
+  this.b23 /= this.a03;
+  this.a13 /= this.a03;
+  this.a23 /= this.a03;
+);
+
+function lpf_do(in,n_lpf)(
+  this.lpf_out = this.b03 * in + this.b13 * this.xl13 + this.b23 * this.xl23 - this.a13 * this.yl13 - this.a23 * this.yl23;
+  this.xl23 = this.xl13;
+  this.xl13 = in;
+  this.yl23 = this.yl13;
+  this.yl13 = this.lpf_out;
+  n_lpf>=1 ?(
+  	this.in2=this.lpf_out;
+  	this.lpf_out = this.b03 * in2 + this.b13 * this.xl14 + this.b23 * this.xl24 - this.a13 * this.yl14 - this.a23 * this.yl24;
+  	this.xl24 = this.xl14;
+  	this.xl14 = this.in2;
+  	this.yl24 = this.yl14;
+  	this.yl14 = this.lpf_out;
+  );
+  this.lpf_out;
+);
+
+//From Stillwell's Fairly Childish Stereo compressor
+function fcsc_init()(
+  this.i=0;
+  this.lattime=0.0002; //200us
+  this.lreltime=0.300; //300ms
+  this.lrmstime=0.000050; //50us
+  this.lmaxover=0;
+  this.lratio=0;
+  this.lcratio=0;
+  this.lrundb=0;
+  this.loverdb=0;
+  this.lmaxover=0;
+  this.latcoef=exp(-1/(this.attime * srate));
+  this.lrelcoef=exp(-1/(this.reltime * srate));
+  this.lrmscoef=exp(-1/(this.rmstime * srate));
+  this.rattime=0.0002; //200us
+  this.rreltime=0.300; //300ms
+  this.rrmstime=0.000050; //50us
+  this.rmaxover=0;
+  this.rratio=0;
+  this.rcratio=0;
+  this.rrundb=0;
+  this.roverdb=0;
+  this.rmaxover=0;
+  this.ratcoef=exp(-1/(this.attime * srate));
+  this.rrelcoef=exp(-1/(this.reltime * srate));
+  this.rrmscoef=exp(-1/(this.rmstime * srate));
+  this.leftright = 0;
+  this.latvert = 1;
+);
+function fcsc_set(agc, ltrsh, rtrsh, lbis, rbis, lmgain, rmgain, ltc, rtc, lrms, rrms)(
+  this.agc = agc;
+
+  this.agc == this.leftright ? (
+    this.lthresh = ltrsh;
+    this.lthreshv = exp(this.lthresh * db2log);
+    this.lratio = 20;
+    this.lbias = 80 * lbis / 100;
+    this.lcthresh = this.lthresh - this.lbias;
+    this.lcthreshv = exp(this.lcthresh * db2log);
+    this.lmakeup = lmgain;
+    this.lmakeupv = exp(this.lmakeup * db2log);
+    this.ltimeconstant = ltc;
+    this.ltimeconstant == 1 ? (
+      this.lattime = 0.0002;
+      this.lreltime = 0.300;
+    );
+    this.ltimeconstant == 2 ? (
+      this.lattime = 0.0002;
+      this.lreltime = 0.800;
+    );
+    this.ltimeconstant == 3 ? (
+      this.lattime = 0.0004;
+      this.lreltime = 2.000;
+    );
+    this.ltimeconstant == 4 ? (
+      this.lattime = 0.0008;
+      this.lreltime = 5.000;
+    );
+    this.ltimeconstant == 5 ? (
+      this.lattime = 0.0002;
+      this.lreltime = 10.000;
+    );
+    this.ltimeconstant == 6 ? (
+      this.lattime = 0.0004;
+      this.lreltime = 25.000;
+    );
+    this.latcoef = exp(-1 / (this.lattime * srate));
+    this.lrelcoef = exp(-1 / (this.lreltime * srate));
+
+    this.lrmstime = lrms / 1000000;
+    this.lrmscoef=exp(-1/(this.lrmstime * srate));
+
+    rtrsh = ltrsh;
+    rbis = lbis;
+    rmgain = lmgain;
+    rtc = ltc;
+    rrms = lrms;
+  ) : (
+    this.lthresh = ltrsh;
+    this.lthreshv = exp(this.lthresh * db2log);
+    this.lratio = 20;
+    this.lbias = 80 * lbis / 100;
+    this.lcthresh = this.lthresh - this.lbias;
+    this.lcthreshv = exp(this.lcthresh * db2log);
+    this.lmakeup = lmgain;
+    this.lmakeupv = exp(this.lmakeup * db2log);
+    this.ltimeconstant = ltc;
+    this.ltimeconstant == 1 ? (
+      this.lattime = 0.0002;
+      this.lreltime = 0.300;
+    );
+    this.ltimeconstant == 2 ? (
+      this.lattime = 0.0002;
+      this.lreltime = 0.800;
+    );
+    this.ltimeconstant == 3 ? (
+      this.lattime = 0.0004;
+      this.lreltime = 2.000;
+    );
+    this.ltimeconstant == 4 ? (
+      this.lattime = 0.0008;
+      this.lreltime = 5.000;
+    );
+    this.ltimeconstant == 5 ? (
+      this.lattime = 0.0002;
+      this.lreltime = 10.000;
+    );
+    this.ltimeconstant == 6 ? (
+      this.lattime = 0.0004;
+      this.lreltime = 25.000;
+    );
+    this.latcoef = exp(-1 / (this.lattime * srate));
+    this.lrelcoef = exp(-1 / (this.lreltime * srate));
+
+    this.lrmstime = lrms / 1000000;
+    this.lrmscoef=exp(-1/(this.lrmstime * srate));
+    this.rthresh = rtrsh;
+    this.rthreshv = exp(this.rthresh * db2log);
+    this.rratio = 20;
+    this.rbias = 80 * rbis / 100;
+    this.rcthresh = this.rthresh - this.rbias;
+    this.rcthreshv = exp(this.rcthresh * db2log);
+    this.rmakeup = rmgain;
+    this.rmakeupv = exp(this.rmakeup * db2log);
+    this.rtimeconstant = rtc;
+    this.rtimeconstant == 1 ? (
+      this.rattime = 0.0002;
+      this.rreltime = 0.300;
+    );
+    this.rtimeconstant == 2 ? (
+      this.rattime = 0.0002;
+      this.rreltime = 0.800;
+    );
+    this.rtimeconstant == 3 ? (
+      this.rattime = 0.0004;
+      this.rreltime = 2.000;
+    );
+    this.rtimeconstant == 4 ? (
+      this.rattime = 0.0008;
+      this.rreltime = 5.000;
+    );
+    this.rtimeconstant == 5 ? (
+      this.rattime = 0.0002;
+      this.rreltime = 10.000;
+    );
+    this.rtimeconstant == 6 ? (
+      this.rattime = 0.0004;
+      this.rreltime = 25.000;
+    );
+    this.ratcoef = exp(-1 / (this.rattime * srate));
+    this.rrelcoef = exp(-1 / (this.rreltime * srate));
+
+    this.rrmstime = rrms / 1000000;
+    this.rrmscoef=exp(-1/(this.rrmstime * srate));
+  );
+);
+
+function fcsc_do(inL, inR)(
+  this.agc == leftright ? (
+    this.aspl0 = abs(inL);
+    this.aspl1 = abs(inR);
+    this.lmaxspl = max(this.aspl0, this.aspl1);
+    this.lmaxspl = this.lmaxspl * this.lmaxspl;
+
+    this.lrunave = this.lmaxspl + this.lrmscoef * (this.lrunave - this.lmaxspl);
+    this.ldet = sqrt(max(0,this.lrunave));
+
+    this.loverdb = 2.08136898 * log(this.ldet/this.lthreshv) * log2db;
+    this.loverdb = max(0,this.loverdb);
+
+    this.loverdb > this.lrundb ? (
+      this.lrundb = this.loverdb + this.latcoef * (this.lrundb - this.loverdb);
+    ) : (
+      this.lrundb = this.loverdb + this.lrelcoef * (this.lrundb - this.loverdb);
+    );
+    this.loverdb = max(this.lrundb,0);
+
+    this.lbias == 0 ? (
+      this.lcratio = this.lratio;
+    ) : (
+      this.lcratio = 1 + (this.lratio-1) * sqrt((this.loverdb + this.dcoffset) / (this.lbias + this.dcoffset));
+    );
+    //slider13 = lcratio;
+    //slider14 = lcratio;
+
+    this.lgr = -this.loverdb * (this.lcratio-1)/this.lcratio;
+    //slider15 = -lgr;
+    //slider16 = -lgr;
+    this.lgrv = exp(this.lgr * db2log);
+
+  ) : (
+    this.aspl0 = abs(inL+inR)/2;
+    this.aspl1 = abs(inL-inR)/2;
+    this.lmaxspl = this.aspl0;
+    this.lmaxspl = this.lmaxspl * this.lmaxspl;
+
+    this.lrunave = this.lmaxspl + this.lrmscoef * (this.lrunave - this.lmaxspl);
+    this.ldet = sqrt(max(0,this.lrunave));
+
+    this.loverdb = 2.08136898 * log(this.ldet/this.lthreshv) * log2db;
+    this.loverdb = max(0,this.loverdb);
+
+    this.loverdb > this.lrundb ? (
+      this.lrundb = this.loverdb + this.latcoef * (this.lrundb - this.loverdb);
+    ) : (
+      this.lrundb = this.loverdb + this.lrelcoef * (this.lrundb - this.loverdb);
+    );
+    this.loverdb = max(this.lrundb,0);
+
+    this.lbias == 0 ? (
+      this.lcratio = this.lratio;
+    ) : (
+      this.lcratio = 1 + (this.lratio-1) * sqrt((this.loverdb + this.dcoffset) / (this.lbias + this.dcoffset));
+    );
+
+    this.rmaxspl = this.aspl1;
+    this.rmaxspl = this.rmaxspl * this.rmaxspl;
+
+    this.rrunave = this.rmaxspl + this.rrmscoef * (this.rrunave - this.rmaxspl);
+    this.rdet = sqrt(max(0,this.rrunave));
+
+    this.roverdb = 2.08136898 * log(this.rdet/this.rthreshv) * log2db;
+    this.roverdb = max(0,this.roverdb);
+
+    this.roverdb > this.rrundb ? (
+      this.rrundb = this.roverdb + this.ratcoef * (this.rrundb - this.roverdb);
+    ) : (
+      this.rrundb = this.roverdb + this.rrelcoef * (this.rrundb - this.roverdb);
+    );
+    this.roverdb = max(this.rrundb,0);
+
+    this.rbias == 0 ? (
+      this.rcratio = this.rratio;
+    ) : (
+      this.rcratio = 1 + (this.rratio-1) * sqrt((this.roverdb + this.dcoffset) / (this.rbias + this.dcoffset));
+    );
+
+    //slider13 = lcratio;
+    //slider14 = rcratio;
+
+    this.lgr = -this.loverdb * (this.lcratio-1)/this.lcratio;
+    this.rgr = -this.roverdb * (this.rcratio-1)/this.rcratio;
+    //slider15 = -lgr;
+    //slider16 = -rgr;
+    this.lgrv = exp(this.lgr * db2log);
+    this.rgrv = exp(this.rgr * db2log);
+
+  );
+
+  this.agc == leftright ? (
+    this.outL = inL * this.lgrv * this.lmakeupv;
+    this.outR = inR * this.lgrv * this.lmakeupv;
+  ) : (
+    this.sav0 = (inL + inR) * this.lgrv;
+    this.sav1 = (inL - inR) * this.rgrv;
+    this.sav0 *= this.lmakeupv;
+    this.sav1 *= this.rmakeupv;
+    this.outL = (this.sav0 + this.sav1) * 0.5;
+    this.outR = (this.sav0 - this.sav1) * 0.5;
+  );
+
+);
