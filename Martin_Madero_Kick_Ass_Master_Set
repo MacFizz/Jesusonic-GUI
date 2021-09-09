@@ -433,6 +433,6 @@ Limiter/Clipper",1);
   kb_ehlcRel.update_slider ? eh.set_ehlc(slider31,slider32,slider33);
   kb_ehlcRel.process_knob();
 
-
+  mouse_wheel=0;
   _effect.EffectDone();
 );

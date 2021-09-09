@@ -1,5 +1,35 @@
 @init
 //By Joanny Krafft
+function draw_label(x,y,label)(
+  gfx_a = .15;
+  this.label_size=strlen(label);
+  GfxDrawStr(x-this.label_size/2-2, y, x+this.label_size/2+2, y+10+2, label);
+  gfx_x=x-this.label_size/2;
+  gfx_y=y;
+  gfx_blurto(x+this.label_size/2,y+15);
+  gfx_a = .07;
+  GfxDrawStr(x-this.label_size/2-2, y, x+this.label_size/2+3, y+10+3, label);
+  gfx_x=x-this.label_size/2;
+  gfx_y=y;
+  gfx_blurto(x+this.label_size/2,y+15);
+  gfx_a = .8;
+  GfxDrawStr(x-this.label_size/2-2, y, x+this.label_size/2, y+10, label);
+);
+function draw_led(x,y,size,r,g,b)(
+  gfx_r=gfx_b=gfx_g=0;
+  gfx_circle(x, y,size,1,1);
+  gfx_r=r;
+  gfx_b=g;
+  gfx_g=b;
+  gfx_circle(x, y,size-3,1,1);
+  gfx_r=gfx_b=gfx_g=.8;
+  gfx_a=.8;
+  gfx_arc(x, y,size-(size/5),1,4,1);
+  gfx_a=1;
+
+);
+
+
 function draw_led(x,y,size)(
   gfx_r=gfx_b=gfx_g=0;
   gfx_circle(x, y,size,1,1);
@@ -8,18 +38,76 @@ function draw_led(x,y,size)(
   gfx_arc(x, y,size-(size/5),1,4,1);
   gfx_a=1;
 );
+function set_wcolor()(
+  _effect.bckgd_r + _effect.bckgd_g + _effect.bckgd_b <1.5 ? gfx_r = gfx_g = gfx_b = .9 : gfx_r = gfx_g = gfx_b = 0;
+  !_effect.bckgd_r & !_effect.bckgd_g & !_effect.bckgd_b ? gfx_r = gfx_g = gfx_b = 0;
+);
+
+function knob_scale(x,y,w)(
+  !this.lowangle ? this.lowangle= -2.3;//-3.25=-6 o'clock
+  !this.highangle ? this.highangle= 2.3;//3.1=+6 o'clock
+  this.x=x;
+  this.y=y;
+  gfx_r=gfx_g=gfx_b=this.col;
+  gfx_a=.6;
+  !this.no_arc ? gfx_arc(this.x,this.y,w,this.lowangle+.1,this.highangle,1);
+  this.arc2 ? gfx_arc(this.x,this.y,w+5,this.lowangle+.1,this.highangle-.05,1);
+  !this.step ? this.step=1;
+  this.anglestep=(this.highangle-this.lowangle)/((this.val_max-this.val_min)/this.step);
+  this.scale=this.val_min;
+  this.angle=this.lowangle;
+  while (this.scale<=this.val_max)(
+    this.type==0 ? (
+      lmx1 =  sin(this.angle) * (w);
+      lmy1 = -cos(this.angle) * (w);
+      lmx2 =  sin(this.angle) * (w+5);
+      lmy2 = -cos(this.angle) * (w+5);
+      gfx_line(this.x+lmx1,this.y+lmy1,this.x+lmx2,this.y+lmy2);
+    );
+    this.type==1 ? (
+      lmx1 =  sin(this.angle) * (w+2);
+      lmy1 = -cos(this.angle) * (w+2);
+      lmx2 =  sin(this.angle) * (w+6);
+      lmy2 = -cos(this.angle) * (w+6);
+      gfx_line(this.x+lmx1,this.y+lmy1,this.x+lmx2,this.y+lmy2);
+    );
+    this.type==2 ? (
+      lmx2 =  sin(this.angle) * (w+6);
+      lmy2 = -cos(this.angle) * (w+6);
+      gfx_circle(this.x+lmx2,this.y+lmy2,2,1,1);
+    );
+    this.type==3 ? (
+      lmx2 =  sin(this.angle) * (w+2);
+      lmy2 = -cos(this.angle) * (w+2);
+      gfx_circle(this.x+lmx2,this.y+lmy2,2,1,1);
+    );
+    this.type==4 ? (
+      anglede=this.angle;
+      lmx1 =  sin(this.angle) * (this.angle <= -$pi/3*2 || this.angle >= $pi/2 ? w+1 : w);
+      lmy1 = -cos(this.angle) * (this.angle <= -$pi/3*2 || this.angle >= $pi/2 ? w+1 : w);
+      lmx2 =  sin(this.angle) * (this.angle <= -$pi/3*2 || this.angle >= $pi/2 ? w+5 : w+4);
+      lmy2 = -cos(this.angle) * (this.angle <= -$pi/3*2 || this.angle >= $pi/2 ? w+5 : w+4);
+      gfx_line(this.x+lmx1,this.y+lmy1,this.x+lmx2,this.y+lmy2);
+    );
+
+    this.angle+=this.anglestep;
+    this.scale+=this.step;
+  );
+);
 
 function draw_pot(x,y,w,value) local (id,val_min,val_max,knob_type,r,g,b,cadre,cadre_r,cadre_g,cadre_b,bias,s,unit,label,prec)
 (
+  this.value_start=this.value;
   this.r =="" ? this.r=.5;
   this.g =="" ? this.g=.5;
   this.b =="" ? this.b=.5;
   value == "" ? (vle_space=0):(vle_space=10);
+  //this.disp_value=value;
   this.label == "" ? (lbl_space=0):(lbl_space=0);
-  this.rw=(w-20)/10;
+  this.rw=round((w-20)/10,0);
   this.x1=x+this.rw/2;
   this.y1=y+this.rw/2;
-  this.ra =  (w-this.rw)/4  ;
+  this.ra = (w-this.rw)/4  ;
   bdr_space=floor(this.rw*2);
   this.cadre>0 ? (
     gfx_r=this.cadre_r ? this.cadre_r : .9;
@@ -31,7 +119,7 @@ function draw_pot(x,y,w,value) local (id,val_min,val_max,knob_type,r,g,b,cadre,c
   this.center_x=this.x1+w/2;
   this.center_y=this.y1+w/2+this.rw+lbl_space;
   this.big_c_r=r;
-
+this.pot_type == 0 ? (
   //shadow
   gfx_r = gfx_g = gfx_b = 0; gfx_a=.2;
   this.offset=0;
@@ -73,84 +161,290 @@ function draw_pot(x,y,w,value) local (id,val_min,val_max,knob_type,r,g,b,cadre,c
   gfx_blurto(this.center_x+1+this.ra,this.center_y+1+this.ra);
 
   //Contour
-  gfx_r = gfx_g = gfx_b = 0; gfx_a = 1.0;
+  set_wcolor();
+  //gfx_r = gfx_g = gfx_b = 0;
+  gfx_a = .7;
   gfx_circle(this.center_x, this.center_y, this.ra+.6, 0);
-
-  gfx_r=gfx_b=gfx_g=0;
-  this.xs=x+this.rw/2;
+);
+  //Label
+  set_wcolor();
+  this.xs=this.center_x;
   this.ys=(this.center_y-w/2);
   gfx_setfont(3);
   this.label ? (
-    gfx_a = .15;
-    label_size=strlen(this.label);
-    GfxDrawStr(this.xs, this.ys, this.xs+w+2, this.ys+10+2, this.label);
-    gfx_x=this.xs;
-    gfx_y=this.ys;
-    gfx_blurto(this.xs+label_size,this.ys+20);
-    gfx_a = .07;
-    label_size=strlen(this.label);
-    GfxDrawStr(this.xs, this.ys, this.xs+w+3, this.ys+10+3, this.label);
-    gfx_x=this.xs;
-    gfx_y=this.ys;
-    gfx_blurto(this.xs+label_size,this.ys+20);
-    gfx_a = .8;
-    label_size=strlen(this.label);
-    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+10, this.label);
-    );
+    !this.labelHA ? this.labelx=this.xs;
+    this.labelHA == 1 ? this.labelx=this.x1-w/2;
+    this.labelHA == 2 ? this.labelx=this.x1+w/2;
+    !this.labelVA ? this.labely=this.ys+this.labelVoffset;
+    this.labelVA == 1 ? this.labely=this.y1+w/2+this.labelVoffset;
+    this.labelVA == 2 ? this.labely=this.y1+w+this.labelVoffset;
+    draw_label(this.labelx,this.labely,this.label);
+  );
   this.ys=y+w-18;
+  this.xs=x+this.rw/2;
   this.unit ==0 ? this.unit="";
-  this.prec == 0 ? (
-    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+35, sprintf(this.s, "%.0f%s", Value, this.unit));
+  !this.valueYpos ? this.valueYpos=35;
+  this.disp_value ? (
+    !this.disp_value_prec ? this.disp_value_prec=this.prec;
+    !this.disp_value_unit ? this.disp_value_unit=this.unit;
+    !this.labstr ? (
+      this.disp_value_prec == 0 ?
+        GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%.0f%s", this.disp_value,this.disp_value_unit));
+      this.disp_value_prec == 1 ?
+        GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%.1f%s", this.disp_value,this.disp_value_unit));
+      this.disp_value_prec == 2 ?
+        GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%.2f%s", this.disp_value,this.disp_value_unit));
+      this.disp_value_prec == 3 ?
+        GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%.3f%s", this.disp_value,this.disp_value_unit));
+    ):(
+    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%s", this.disp_value,this.disp_value_unit));
+  );
+
+  ):(
+    !this.novalue ? (
+      this.prec == 0 ? (
+        GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%.0f%s", value, this.unit));
+        );
+      this.prec == 1 ? (
+        GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%.1f%s", Value, this.unit));
+        );
+      this.prec == 2 ? (
+          GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%.2f%s", Value, this.unit));
+        );
+        this.prec == 3 ? (
+          GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+this.valueYpos, sprintf(this.s, "%.3f%s", Value, this.unit));
+        );
     );
-  this.prec == 1 ? (
-    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+35, sprintf(this.s, "%.1f%s", Value, this.unit));
-    );
-  this.prec == 2 ? (
-    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+35, sprintf(this.s, "%.2f%s", Value, this.unit));
-    );
-  this.prec == 3 ? (
-    GfxDrawStr(this.xs, this.ys, this.xs+w, this.ys+35, sprintf(this.s, "%.3f%s", Value, this.unit));
-    );
+  );
 
   gfx_r=gfx_b=gfx_g=1;
 
   this.valueratio = max(0, min(1, (value - this.val_min)/(this.val_max - this.val_min)));
-  this.i =  max(0, min(1, (this.value - this.val_min) / (this.val_max - this.val_min) ));
-    this.bias ? (
-      this.valueratio=log(this.valueratio*(exp(this.bias) - 1) + 1)/this.bias;
-      this.i = log(i*(exp(this.bias) -1 ) + 1)/this.bias;
-    ) : this.valueratio;
+  this.bias ? (
+    this.valueratio=log(this.valueratio*(exp(this.bias) - 1) + 1)/this.bias;
+  ) : this.valueratio;
 
-    this.lowangle = -2.3;
-    this.highangle = 2.3;
-    this.angle = this.lowangle + (this.highangle - this.lowangle)*(this.valueratio*0.98 + 0.02);
+  !this.lowangle ? this.lowangle= -2.3;//-3.25=-6 o'clock
+  !this.highangle ? this.highangle= 2.3;//3.1=+6 o'clock
+  //this.angle = this.lowangle + (this.highangle - this.lowangle)*(this.valueratio*0.99 + 0.01);
+  this.angle = this.lowangle + (this.highangle - this.lowangle)*this.valueratio;
 
-    xx =  sin(this.angle) * this.ra;
-    yy = -cos(this.angle) * this.ra;
-    gfx_a = 1;
-    this.r+this.b+this.g >=2.3 ? (
-          gfx_r = 0; gfx_g = gfx_b = 0;
-          ):(
-          gfx_r = 1; gfx_g = gfx_b = 1;
-          );
-    gfx_line(this.center_x , this.center_y, this.center_x + xx, this.center_y + yy,1);
+  this.pot_type == 1 ? (
+    gfx_a=.3;
+    gfx_r=gfx_b=gfx_g=0;
+    cx1 =  sin(this.angle+.4) * (this.ra+this.angle/10);
+    cy1 = -cos(this.angle+.4) * (this.ra+this.angle/10);
+    cx2 =  sin(this.angle+2.7) * (this.ra-this.angle/10);
+    cy2 = -cos(this.angle+2.7) * (this.ra-this.angle/10);
+    cx3 =  sin(this.angle-2.7) * (this.ra-this.angle/10);
+    cy3 = -cos(this.angle-2.7) * (this.ra-this.angle/10);
+    cx4 =  sin(this.angle-.4) * (this.ra+this.angle/10);
+    cy4 = -cos(this.angle-.4) * (this.ra+this.angle/10);
+    gfx_line(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2);
+    gfx_line(this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_triangle(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2,this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
 
-  mouse_x >= this.center_x-w/2 && mouse_x <= this.center_x+w/2
-  && mouse_y >= this.center_y-w/2 && mouse_y <= this.center_y+w/2 ? (
+    gfx_a=.5;
+    gfx_r=gfx_b=gfx_g=0;
+    cx1 =  sin(this.angle+.35) * (this.ra+this.angle/10);
+    cy1 = -cos(this.angle+.35) * (this.ra+this.angle/10);
+    cx2 =  sin(this.angle+2.75) * (this.ra-this.angle/10);
+    cy2 = -cos(this.angle+2.75) * (this.ra-this.angle/10);
+    cx3 =  sin(this.angle-2.75) * (this.ra-this.angle/10);
+    cy3 = -cos(this.angle-2.75) * (this.ra-this.angle/10);
+    cx4 =  sin(this.angle-.35) * (this.ra+this.angle/10);
+    cy4 = -cos(this.angle-.35) * (this.ra+this.angle/10);
+    gfx_line(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2);
+    gfx_line(this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_triangle(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2,this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+
+    gfx_a=.8;
+    gfx_r=gfx_b=gfx_g=0;
+    cx1 =  sin(this.angle+.3) * (this.ra+this.angle/10);
+    cy1 = -cos(this.angle+.3) * (this.ra+this.angle/10);
+    cx2 =  sin(this.angle+2.8) * (this.ra-this.angle/10);
+    cy2 = -cos(this.angle+2.8) * (this.ra-this.angle/10);
+    cx3 =  sin(this.angle-2.8) * (this.ra-this.angle/10);
+    cy3 = -cos(this.angle-2.8) * (this.ra-this.angle/10);
+    cx4 =  sin(this.angle-.3) * (this.ra+this.angle/10);
+    cy4 = -cos(this.angle-.3) * (this.ra+this.angle/10);
+    gfx_line(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2);
+    gfx_line(this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_triangle(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2,this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_x=this.center_x-this.ra-2;
+    gfx_y=this.center_y-this.ra-2;
+    gfx_blurto(this.center_x+this.ra+2,this.center_y+this.ra+2);
+  );
+  this.pot_type == 2 ? (
+    //shadow
+
+    gfx_r = gfx_g = gfx_b = 0; gfx_a=.15;
+    this.offset=0;
+    gfx_circle(this.center_x + 3+this.offset, this.center_y + 2+this.offset,(this.ra+this.offset)/2, 1);
+    gfx_x=this.center_x-3-this.offset*2-this.ra;
+    gfx_y=this.center_y-2-this.ra-this.offset*2;
+    gfx_blurto(this.center_x+3+this.ra+this.offset,this.center_y+2+this.ra+this.offset);
+    gfx_r = gfx_g = gfx_b = 0; gfx_a=.10;
+    this.offset=1;
+    gfx_circle(this.center_x + 3+this.offset, this.center_y + 2+this.offset,(this.ra+this.offset)/2, 1);
+    gfx_x=this.center_x-3-this.offset*2-this.ra;
+    gfx_y=this.center_y-2-this.ra-this.offset*2;
+    gfx_blurto(this.center_x+3+this.ra+this.offset,this.center_y+2+this.ra+this.offset);
+    gfx_r = gfx_g = gfx_b = 0; gfx_a=.05;
+    this.offset=2;
+    gfx_circle(this.center_x + 3+this.offset, this.center_y + 2+this.offset,(this.ra+this.offset)/2, 1);
+    gfx_x=this.center_x-3-this.offset*2-this.ra;
+    gfx_y=this.center_y-2-this.ra-this.offset*2;
+    gfx_blurto(this.center_x+3+this.ra+this.offset,this.center_y+2+this.ra+this.offset);
+    gfx_a=1;
+    gfx_r=gfx_b=gfx_g=0;
+    this.tck= $pi/10;
+    this.tck2= $pi/20;
+    cx1 =  sin(this.angle+this.tck2) * (this.ra+this.angle/10);
+    cy1 = -cos(this.angle+this.tck2) * (this.ra+this.angle/10);
+    cx2 =  sin(this.angle+$pi-this.tck) * (this.ra-this.angle/10);
+    cy2 = -cos(this.angle+$pi-this.tck) * (this.ra-this.angle/10);
+    cx3 =  sin(this.angle-$pi+this.tck) * (this.ra-this.angle/10);
+    cy3 = -cos(this.angle-$pi+this.tck) * (this.ra-this.angle/10);
+    cx4 =  sin(this.angle-this.tck2) * (this.ra+this.angle/10);
+    cy4 = -cos(this.angle-this.tck2) * (this.ra+this.angle/10);
+    /*gfx_line(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2);
+    gfx_line(this.center_x+cx2,this.center_y+cy2,this.center_x+cx3,this.center_y+cy3);
+    gfx_line(this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_line(this.center_x+cx4,this.center_y+cy4,this.center_x+cx1,this.center_y+cy1);*/
+    gfx_triangle(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2,this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_x=this.center_x-this.ra-2;
+    gfx_y=this.center_y-this.ra-2;
+    gfx_blurto(this.center_x+this.ra+2,this.center_y+this.ra+2);
+
+    gfx_r = gfx_g = gfx_b = 0.3;
+    gfx_circle(this.center_x-1, this.center_y-1, this.ra * 0.55, 1);
+    gfx_r = gfx_g = gfx_b = 0;
+    gfx_circle(this.center_x-1, this.center_y-1, this.ra * 0.4, 1);
+    gfx_x=this.center_x-this.ra-1;
+    gfx_y=this.center_y-this.ra-1;
+    gfx_blurto(this.center_x+1+this.ra,this.center_y+1+this.ra);
+    this.needle_len=.2;
+  );
+
+  this.pot_type == 3 ? (
+/*
+    gfx_a=.3;
+    gfx_r=gfx_b=gfx_g=0;
+    pi10=$pi/7;
+    cx1 =  sin(this.angle+pi10) * (this.ra);
+    cy1 = -cos(this.angle+pi10) * (this.ra);
+    cx2 =  sin(this.angle+$pi-pi10) * (this.ra);
+    cy2 = -cos(this.angle+$pi-pi10) * (this.ra);
+    cx3 =  sin(this.angle-$pi+pi10) * (this.ra);
+    cy3 = -cos(this.angle-$pi+pi10) * (this.ra);
+    cx4 =  sin(this.angle-pi10) * (this.ra);
+    cy4 = -cos(this.angle-pi10) * (this.ra);
+    gfx_line(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2);
+    gfx_line(this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_triangle(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2,this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+
+    gfx_a=.5;
+    gfx_r=gfx_b=gfx_g=0;
+    pi10=$pi/8;
+    cx1 =  sin(this.angle+pi10) * (this.ra);
+    cy1 = -cos(this.angle+pi10) * (this.ra);
+    cx2 =  sin(this.angle+$pi-pi10) * (this.ra);
+    cy2 = -cos(this.angle+$pi-pi10) * (this.ra);
+    cx3 =  sin(this.angle-$pi+pi10) * (this.ra);
+    cy3 = -cos(this.angle-$pi+pi10) * (this.ra);
+    cx4 =  sin(this.angle-pi10) * (this.ra);
+    cy4 = -cos(this.angle-pi10) * (this.ra);
+    gfx_line(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2);
+    gfx_line(this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_triangle(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2,this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+*/
+    gfx_a=.8;
+    gfx_r=gfx_b=gfx_g=0;
+    pi10=$pi/10;
+    cx1 =  round(sin(this.angle+pi10) * (this.ra/*+this.angle/10*/),0);
+    cy1 = round(-cos(this.angle+pi10) * (this.ra/*+this.angle/10*/),0);
+    cx2 =  round(sin(this.angle+$pi-pi10) * (this.ra/*-this.angle/10*/),0);
+    cy2 = round(-cos(this.angle+$pi-pi10) * (this.ra/*-this.angle/10*/),0);
+    cx3 =  round(sin(this.angle-$pi+pi10) * (this.ra/*-this.angle/10*/),0);
+    cy3 = round(-cos(this.angle-$pi+pi10) * (this.ra/*-this.angle/10*/),0);
+    cx4 =  round(sin(this.angle-pi10) * (this.ra/*+this.angle/10*/),0);
+    cy4 = round(-cos(this.angle-pi10) * (this.ra/*+this.angle/10*/),0);
+    //gfx_line(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2);
+    //gfx_line(this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    gfx_triangle(this.center_x+cx1,this.center_y+cy1,this.center_x+cx2,this.center_y+cy2,this.center_x+cx3,this.center_y+cy3,this.center_x+cx4,this.center_y+cy4);
+    /*gfx_x=this.center_x-this.ra-2;
+    gfx_y=this.center_y-this.ra-2;
+    gfx_blurto(this.center_x+this.ra+2,this.center_y+this.ra+2);*/
+    this.needle_len=.2;
+  );
+
+  pi=3.1415926535898;
+  this.xxsin=sin(this.angle);
+  this.yycos=-cos(this.angle);
+
+  xx =  this.xxsin * (this.ra-3);
+  yy =  this.yycos * (this.ra-3);
+  xx2 =  sin(this.angle+pi/2) * (this.ra*1.2);
+  yy2 = -cos(this.angle+pi/2) * (this.ra*1.2);
+  xx3 =  sin(this.angle-pi/2) * (this.ra*1.2);
+  yy3 = -cos(this.angle-pi/2) * (this.ra*1.2);
+  xx4 =  this.xxsin * (this.ra*1.3);
+  yy4 = this.yycos * (this.ra*1.3);
+  !this.needle_len ? this.needle_len=1;
+  this.xx5 = this.xxsin * ((this.ra-3)*(1-this.needle_len));
+  this.yy5 = this.yycos * ((this.ra-3)*(1-this.needle_len));
+  xx6 =  sin(this.angle+.4) * ((this.ra-3)/3);
+  yy6 = -cos(this.angle+.4) * ((this.ra-3)/3);
+  xx7 =  sin(this.angle-.4) * ((this.ra-3)/3);
+  yy7 = -cos(this.angle-.4) * ((this.ra-3)/3);
+  gfx_a = 1;
+  this.r+this.b+this.g >=2.3 ? (
+        gfx_r = 0; gfx_g = gfx_b = 0;
+        this.col=0;
+        ):(
+        gfx_r = 1; gfx_g = gfx_b = 1;
+        this.col=1;
+        );
+  this.pot_type==1 ? (
+    gfx_r = 1; gfx_g = gfx_b = 1;
+  );
+  this.indicator ? gfx_circle(this.center_x+xx4,this.center_y+yy4,this.ra/15,1);
+  !this.no_needle ? (
+    this.needle_len>.2 ? (
+      gfx_line(this.center_x+this.xx5, this.center_y+this.yy5, this.center_x + xx, this.center_y + yy,1);
+    ):(
+      gfx_a=.8;
+      gfx_circle(this.center_x+xx,this.center_y+yy,this.ra/10,1,1);
+    )
+  );
+  this.diam_needle ? (
+    gfx_a=.8;
+    gfx_line(this.center_x, this.center_y, this.center_x + xx6, this.center_y + yy6,1);
+    gfx_line(this.center_x, this.center_y, this.center_x + xx7, this.center_y + yy7,1);
+    gfx_line(this.center_x+xx6, this.center_y+yy6, this.center_x + xx, this.center_y + yy,1);
+    gfx_line(this.center_x+xx7, this.center_y+yy7, this.center_x + xx, this.center_y + yy,1);
+  );
+
+  mouse_x >= this.center_x-this.ra && mouse_x <= this.center_x+this.ra
+  && mouse_y >= this.center_y-this.ra && mouse_y <= this.center_y+this.ra ? (
     !mouse_cap ? this.hasEntered = 1;
      mouse_cap ? this.hasClicked = 1;
+     this.mouse_wheel=mouse_wheel;
     ):(
     this.hasEntered=0;
+    this.mouse_wheel=0;
   );
-  this.hasEntered ? (
-    this.bias ? (this.nv_val=(this.val_max-this.val_min)/1000* mouse_wheel/(5*this.bias*this.bias);
-      ):(
-      this.nv_val=(this.val_max-this.val_min)/1000* mouse_wheel/10;
-      );
-    this.update_slider=1;
-    mouse_wheel=0;
 
+  this.hasEntered ? (
+    this.bias ? (this.nv_val=(this.val_max-this.val_min)/1000* this.mouse_wheel/(5*this.bias*this.bias);
+      ):(
+      this.nv_val=(this.val_max-this.val_min)/1000* this.mouse_wheel/10;
+      );
+    this.nv_val!=0 ? this.update_slider=1;
+    mouse_wheel=0;
   );
+  this.mouse_wheel=0;
   this.canChange==0 ? this.start_pos=mouse_y;
   this.hasEntered & mouse_cap ? (
     this.hasClicked=1;
@@ -197,6 +491,9 @@ function draw_pot(x,y,w,value) local (id,val_min,val_max,knob_type,r,g,b,cadre,c
       this.rpos = floor((1 - this.normalized) + fn * this.normalized) * fh;
       );
     value;
+    this.value_start!==this.value ? this.update_slider=1;
+  !this.rascale ? this.rascale=.4;
+  this.knob_scale ? this.knob_scale(this.center_x,this.center_y,this.ra+this.ra*this.rascale);
 );
 
 function draw_chkbox(x,y,s,title,color)
@@ -258,13 +555,13 @@ function draw_chkbox(x,y,s,title,color)
 
   // Checked
   this.checked ? (
-
-    color==1 ? (gfx_r = 0.0; gfx_g = 0.9; gfx_b = 0;);
-    color==2 ? (gfx_r = 0.9; gfx_g = 0.0; gfx_b = 0;);
-    color==3 ? (gfx_r = 0.0; gfx_g = 0.0; gfx_b = 0.9;);
-    color==4 ? (gfx_r = 0.9; gfx_g = 0.9; gfx_b = 0.0;);
-    color==5 ? (gfx_r = 0.0; gfx_g = 0.9; gfx_b = 0.9;);
-    color==6 ? (gfx_r = 0.9; gfx_g = 0.0; gfx_b = 0.9;);
+    this.color=color;
+    this.color==1 ? (gfx_r = 0.0; gfx_g = 0.9; gfx_b = 0;);
+    this.color==2 ? (gfx_r = 0.9; gfx_g = 0.0; gfx_b = 0;);
+    this.color==3 ? (gfx_r = 0.0; gfx_g = 0.0; gfx_b = 0.9;);
+    this.color==4 ? (gfx_r = 0.9; gfx_g = 0.9; gfx_b = 0.0;);
+    this.color==5 ? (gfx_r = 0.0; gfx_g = 0.9; gfx_b = 0.9;);
+    this.color==6 ? (gfx_r = 0.9; gfx_g = 0.0; gfx_b = 0.9;);
 
     //glow
     !this.noglow ? (
@@ -306,31 +603,66 @@ function blur(bxstart,bystart,bxend,byend)(
 function button(xb,yb,nomb)(
 
   gfx_measurestr(nomb,w,h);
-  gfx_r=gfx_g=gfx_b=0.6;
-//  gfx_roundrect(xb,yb,w+6,h+6,5);
-  gfx_rect(xb,yb,w+6,h+6,5);
-  gfx_x=xb+3;
-  gfx_y=yb+3;
-  gfx_r=gfx_g=gfx_b=0;
-  gfx_drawstr(nomb);
+  this.r ? gfx_r=this.r : gfx_r=this.r=.6;
+  this.g ? gfx_g=this.g : gfx_g=this.g=.6;
+  this.b ? gfx_b=this.b : gfx_b=this.b=.6;
 
   // Mouse Logic
-    mouse_x >= xb && mouse_x <= xb+w && mouse_y >= yb && mouse_y <= yb+h && !this.disabled ? (
+    mouse_x >= xb && mouse_x <= xb+w+6 && mouse_y >= yb && mouse_y <= yb+h+6 && !this.disabled ? (
+      gfx_r=this.r+.05;
+      gfx_g=this.g+.05;
+      gfx_b=this.b+.05;
       !mouse_cap ? this.hasEntered = 1;
-      mouse_cap ? this.hasClicked = 1;
+      mouse_cap ? (
+        this.hasClicked = 1;
+        gfx_r=this.r+.2;
+        gfx_g=this.g+.2;
+        gfx_b=this.b+.2;
+      );
       this.hasEntered && this.hasClicked ? this.canChange = 1;
     ) : (
       this.hasEntered = this.hasClicked = this.canChange = 0;
     );
+    gfx_rect(xb,yb,w+6,h+6,5);
     !mouse_cap ? (this.canChange = 0;);
-
+    gfx_x=xb+3;
+    gfx_y=yb+3;
+    gfx_r=gfx_g=gfx_b=0;
+    gfx_drawstr(nomb);
     this.canChange ? (
       this.checked = 1-this.checked;
       this.hasEntered = this.hasClicked = this.canChange = 0;
       _sliderDirty = 1;
     );
-  this.checked ? main=0;
+  //this.checked ? main=0;
+);
 
+function process_button()(
+  main=0;
+  binfos.checked=0;
+  bcred.checked=0;
+  bsettings.checked=0;
+);
+
+function infoscred(x,y)(
+  bsettings ? (
+    bsettings.button(x-75,y,"Settings");
+    bsettings.checked ? (
+      process_button();
+      bsettings.checked=1;
+    );
+  );
+  binfos.button(x,y,"Infos");
+  binfos.checked ? (
+    process_button();
+    binfos.checked=1;
+  );
+  bcred.button(x+50,y,"Credits");
+  bcred.checked ? (
+    process_button();
+    bcred.checked=1;
+  );
+ !bcred.checked & !binfos.checked & !bsettings.checked ? main=1;
 );
 
 //By Joanny Krafft
@@ -353,5 +685,352 @@ function process_knob()(
     this.update_slider=0;
     sliderchange(this.id);
     SWIPE.WidgetChanged=TRUE;
+    Update_Settings=TRUE;
   );
+);
+
+function vu_grmeter(x,y,w,h,gr)(
+  this.gr=gr;
+  this.vgr=this.gr/1.5;
+  !this.vu_meter_b ? this.vu_meter_b=10;
+
+  this.vdif=abs(this.vgr-this.agr);
+  this.vcomp=this.vu_meter_b/10;
+  //this.vcomp=abs(co.lthresh)/10;
+  playing ? (
+    this.vdif>this.vcomp ? (
+      this.vgrv+=(this.vgr-this.vgrv)/this.vu_meter_b;
+    ):(
+      this.vgrv+=(this.vgr/this.vu_meter_b);
+    this.vgrv=min(0,this.vgrv+0.3);
+    this.vgr=max(0,this.vgr+0.3);
+    this.gr=min(0,this.gr+0.3);
+    ) ;
+  ):(
+    this.vgrv=min(0,this.vgrv+0.3);
+    this.vgr=max(0,this.vgr+0.3);
+    this.gr=min(0,this.gr+0.3);
+  );
+  this.agr=this.vgrv;
+
+  gfx_r=gfx_g=gfx_b=0;
+  //gfx_rect(20,y-5,130,100);
+  gfx_setfont(3);
+  this.gr_meter *= exp(1/30);
+  this.gr_meter>1 ? this.gr_meter=1; // decay meter here so if the audio processing stops it doesnt "stick"
+
+  this.meter_x=x;
+  this.meter_y=y;
+  this.meter_w=w;
+  this.meter_bot=21;
+  this.meter_h=20;
+  this.vu_h=h;
+  this.xscale=this.meter_w*20/this.meter_bot;
+  this.vu_xscale=this.meter_w/this.meter_bot;
+
+  gfx_r=gfx_g=gfx_b=0; gfx_a=1;
+  gfx_rect(this.meter_x,this.meter_y,this.meter_w,this.vu_h);
+
+  gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
+  gfx_y=this.meter_y;
+  this.gr_pos=max(this.meter_x,this.meter_w + this.vgrv*this.vu_xscale+this.meter_x);
+  this.gr_posi=max(this.meter_x,this.meter_w + this.gr*this.vu_xscale+this.meter_x);
+  gfx_x=this.gr_posi+1;
+  !this.no_bot ? gfx_rectto(this.meter_w+this.meter_x+1,this.meter_h+this.meter_y);
+  gfx_x=this.gr_pos;
+  gfx_r=gfx_g=gfx_b=1; gfx_a=.8;
+  this.vu_pad=min(this.meter_w,this.vu_h);
+  gfx_arc(this.meter_x+this.meter_w/2-1,this.meter_y+this.vu_h-2,this.vu_pad-this.meter_h-this.vu_pad/30,-1,1);
+  this.lowangle = -1;
+  this.highangle = 1;
+  this.valueratio = max(0, min(1, (this.vgrv + 21)/(0 + 21)));
+  this.angle = this.lowangle + (this.highangle - this.lowangle)*(this.valueratio*0.99 + 0.01);
+
+  this.xx =  sin(this.angle) * (this.vu_pad-this.meter_h-this.vu_pad/15);
+  this.yy = -cos(this.angle) * (this.vu_pad-this.meter_h-this.vu_pad/15);
+  this.n_xorig=this.meter_x+this.meter_w/2;
+  this.n_yorig=this.meter_y+this.vu_h-2;
+//The needle
+  gfx_line(this.n_xorig-1,this.n_yorig,this.n_xorig+this.xx,this.n_yorig+this.yy);
+  gfx_line(this.n_xorig,this.n_yorig,this.n_xorig+this.xx,this.n_yorig+this.yy);
+  gfx_line(this.n_xorig+1,this.n_yorig,this.n_xorig+this.xx,this.n_yorig+this.yy);
+  !this.no_origfx ? (
+    gfx_r=gfx_g=gfx_b=.3; gfx_a=1;
+    gfx_circle(this.n_xorig,this.n_yorig,this.meter_w/10,1,1);
+    !_effect.bckgd_r ? gfx_r = .6 : gfx_r=_effect.bckgd_r;
+    !_effect.bckgd_g ? gfx_g = .6 : gfx_g=_effect.bckgd_g;
+    !_effect.bckgd_b ? gfx_b = .6 : gfx_b=_effect.bckgd_b;
+    //gfx_r=gfx_g=gfx_b=.6; gfx_a=1;
+    gfx_rect(this.n_xorig-this.meter_w/10,this.n_yorig+2,this.meter_w/5+2,this.meter_w/10+2);
+  );
+
+  gfx_r=gfx_g=gfx_b=1.0; gfx_a=0.6;
+
+!this.no_bot ?(
+  this.s2=sqrt(2)/2;
+  this.g = this.s2;
+  gfx_setfont(4);
+  while(
+    gfx_x=this.meter_w + log10(this.g)*this.xscale + this.meter_x;
+    gfx_x >= this.meter_x ?
+    (
+      gfx_y=this.meter_y;
+      gfx_lineto(gfx_x,this.meter_h+this.meter_y,0);
+      gfx_y=this.meter_h-gfx_texth+this.meter_y;
+      gfx_x+=2;
+      gfx_drawnumber(log10(this.g)*20,0);
+      gfx_drawchar($'d');
+      gfx_drawchar($'B');
+    );
+    this.g*=this.s2;
+    gfx_x >=0;
+  );
+);
+  gfx_r=gfx_g=gfx_b=1; gfx_a=.5;
+  gfx_line(this.meter_x-1,this.meter_y-1,
+    this.meter_x+this.meter_w+0,this.meter_y-1);
+  gfx_line(this.meter_x+this.meter_w+0,this.meter_y-1,
+    this.meter_x+this.meter_w+0,this.meter_y+this.vu_h+0);
+  gfx_line(this.meter_x+this.meter_w+0,this.meter_y+this.vu_h+0,
+    this.meter_x-1,this.meter_y+this.vu_h+0);
+  gfx_line(this.meter_x-1,this.meter_y+this.vu_h+0,
+    this.meter_x-1,this.meter_y-1);
+  gfx_a=1;
+  gfx_r=gfx_g=gfx_b=1;
+  gfx_setfont(3);
+  //true GR
+  gfx_measurestr(sprintf(this.s, "%.1f%s", this.vgrv,"dB"),this.grw,this.grh);
+  GfxDrawStr(this.meter_x+this.meter_w-this.grw-2, this.n_yorig-10, this.meter_x+this.meter_w, this.n_yorig, sprintf(this.s, "%.1f%s", this.vgrv,"dB"));
+  //Processed GR
+  gfx_measurestr(sprintf(this.s, "%.1f%s", this.gr,"dB"),this.grw,this.grh);
+  GfxDrawStr(this.meter_x, this.n_yorig-10, this.meter_x+this.grw, this.n_yorig, sprintf(this.s, "%.1f%s", this.gr,"dB"));
+);
+
+function set_theme(theme)(
+  theme == 0 ? (
+    this.name="Default";
+    _effect.grad_dr= _effect.grad_dg= _effect.grad_db=.1;
+    _effect.grad_ar= _effect.grad_ag= _effect.grad_ab=.4;
+    _effect.foot_r=  _effect.foot_g= _effect.foot_b=.8;
+    _effect.bckgd_r= _effect.bckgd_g= _effect.bckgd_b=.6;
+    theme0=1;
+  );
+  theme == 1 ? (
+    this.name="Black";
+    _effect.grad_dr=0.1;
+    _effect.grad_dg=0.1;
+    _effect.grad_db=0.1;
+    _effect.grad_ar=0.3;
+    _effect.grad_ag=0.3;
+    _effect.grad_ab=0.3;
+    _effect.foot_r=0.001;
+    _effect.foot_g=0.001;
+    _effect.foot_b=0.001;
+    _effect.bckgd_r=_effect.bckgd_g=_effect.bckgd_b=.001;
+  );
+  theme == 2 ? (
+    this.name="White";
+    _effect.grad_dr=1;
+    _effect.grad_dg=1;
+    _effect.grad_db=1;
+    _effect.grad_ar=.7;
+    _effect.grad_ag=.7;
+    _effect.grad_ab=.7;
+    _effect.foot_r=.9;
+    _effect.foot_g=.9;
+    _effect.foot_b=.9;
+    _effect.bckgd_r=_effect.bckgd_g=_effect.bckgd_b=.9;
+  );
+  theme == 3 ? (
+    this.name="Red";
+    _effect.grad_dr=.3;
+    _effect.grad_dg=.1;
+    _effect.grad_db=.1;
+    _effect.grad_ar=.6;
+    _effect.grad_ag=.4;
+    _effect.grad_ab=.4;
+    _effect.foot_r=.7;
+    _effect.foot_g=.5;
+    _effect.foot_b=.5;
+    _effect.bckgd_r=.7;
+    _effect.bckgd_g=_effect.bckgd_b=.6;
+  );
+  theme == 4 ? (
+    this.name="Green";
+    _effect.grad_dr=.1;
+    _effect.grad_dg=.3;
+    _effect.grad_db=.1;
+    _effect.grad_ar=.4;
+    _effect.grad_ag=.6;
+    _effect.grad_ab=.4;
+    _effect.foot_r=.5;
+    _effect.foot_g=.7;
+    _effect.foot_b=.5;
+    _effect.bckgd_r=_effect.bckgd_b=.6;
+    _effect.bckgd_g=.7;
+  );
+  theme == 5 ? (
+    this.name="Blue";
+    _effect.grad_dr=.1;
+    _effect.grad_dg=.1;
+    _effect.grad_db=.3;
+    _effect.grad_ar=.4;
+    _effect.grad_ag=.4;
+    _effect.grad_ab=.6;
+    _effect.foot_r=.5;
+    _effect.foot_g=.5;
+    _effect.foot_b=1;
+    _effect.bckgd_r=_effect.bckgd_g=.6;
+    _effect.bckgd_b=.7;
+  );
+  theme == 6 ? (
+    _effect.grad_dr=.1;
+    _effect.grad_dg=.1;
+    _effect.grad_db=.3;
+    _effect.grad_ar=.4;
+    _effect.grad_ag=.4;
+    _effect.grad_ab=.6;
+    _effect.foot_r=.5;
+    _effect.foot_g=.5;
+    _effect.foot_b=1;
+    _effect.bckgd_r=.7;
+    _effect.bckgd_g=_effect.bckgd_b=.6;
+  );
+  theme == 7 ? (
+    _effect.grad_dr=.1;
+    _effect.grad_dg=.1;
+    _effect.grad_db=.3;
+    _effect.grad_ar=.4;
+    _effect.grad_ag=.4;
+    _effect.grad_ab=.6;
+  );
+  theme == 8 ? (
+    this.name="Yellow";
+    _effect.grad_dr=.1;
+    _effect.grad_dg=.1;
+    _effect.grad_db=.001;
+    _effect.grad_ar=.4;
+    _effect.grad_ag=.4;
+    _effect.grad_ab=.1;
+    _effect.foot_r=.8;
+    _effect.foot_g=.8;
+    _effect.foot_b=.5;
+    _effect.bckgd_r=.8;
+    _effect.bckgd_g=.8;
+    _effect.bckgd_b=.001;
+  );
+  theme == 9 ? (
+    this.name="Brown";
+    _effect.grad_dr=.2;
+    _effect.grad_dg=.15;
+    _effect.grad_db=.15;
+    _effect.grad_ar=.3;
+    _effect.grad_ag=.2;
+    _effect.grad_ab=.2;
+    _effect.foot_r=.2;
+    _effect.foot_g=.15;
+    _effect.foot_b=.1;
+    _effect.bckgd_r=.15;
+    _effect.bckgd_g=_effect.bckgd_b=.1;
+  );
+  theme == 10 ? (
+    _effect.grad_dr=.1;
+    _effect.grad_dg=.1;
+    _effect.grad_db=.3;
+    _effect.grad_ar=.4;
+    _effect.grad_ag=.4;
+    _effect.grad_ab=.6;
+  );
+  theme == 11 ? (
+    this.name="Dark";
+    _effect.grad_dr=0.15;
+    _effect.grad_dg=0.15;
+    _effect.grad_db=0.15;
+    _effect.grad_ar=0.4;
+    _effect.grad_ag=0.4;
+    _effect.grad_ab=0.4;
+    _effect.foot_r=0.3;
+    _effect.foot_g=0.3;
+    _effect.foot_b=0.3;
+    _effect.bckgd_r=_effect.bckgd_g=_effect.bckgd_b=.6;
+  );
+);
+
+function compgraph(x,y,w,h)(
+  this.grid_x=x;
+  this.grid_y=y;
+  this.grid_w=w;
+  this.grid_h=h;
+  this.grid_bottom=this.grid_y+this.grid_h;
+  this.grid_right=this.grid_x+this.grid_w;
+  gfx_r=gfx_g=gfx_b=1.0;
+  gfx_a=.10;
+  gfx_rect(this.grid_x,this.grid_y,this.grid_w,this.grid_h);
+
+  this.thresh = exp(this.threshDB/8.65617025);
+  this.grid_thresh_x=this.grid_w*this.thresh+this.grid_x;
+  this.grid_thresh_y=(this.grid_thresh_x/this.grid_w)*this.grid_h-this.grid_y;
+
+  gfx_x=this.grid_x;
+  gfx_y=this.grid_bottom;
+  gfx_r=gfx_g=gfx_b=1.0;
+  gfx_a=1.0;
+  this.peak_x=this.grid_x+this.grid_w*this.rms;
+  this.peak_y=this.grid_bottom-this.grid_h*this.rms;
+
+  // Draw cross-line before threshold
+  this.grid_ratio_y=min((this.grid_h-this.grid_thresh_y)*(1-this.ratio),this.grid_y);
+  gfx_lineto(this.grid_thresh_x, this.grid_y+this.grid_bottom-this.grid_thresh_y,1);
+  gfx_lineto(this.grid_w+this.grid_x, this.grid_y+this.grid_ratio_y, 1);
+
+  // Draw peak-circle
+  gfx_r=gfx_g=gfx_b=1.0; gfx_a=1.0;
+  //   Red circle if over threshold
+  this.peak_x >= this.grid_thresh_x ? (
+    gfx_g=gfx_b=0.0;
+
+    this.comp_w = this.grid_w-this.grid_thresh_x;
+    this.comp_x = this.peak_x-this.grid_thresh_x;
+    this.comp_pc = this.comp_x/this.comp_w;
+
+    this.comp_h = this.grid_h-this.grid_thresh_y;
+    this.comp_y = (this.grid_h-this.grid_ratio_y)-this.grid_thresh_y;
+
+    this.peak_y = this.grid_bottom - (this.grid_thresh_y + this.comp_pc * this.comp_y);
+  );
+  gfx_x=this.peak_x;
+  gfx_y=this.peak_y-2; // top
+  gfx_circle(this.peak_x,this.peak_y,2,1);
+
+  // Draw threshold line
+  gfx_r=1.0; gfx_g=gfx_b=0.0;
+  gfx_a=1.0;
+  gfx_x=this.thresh*this.grid_w+this.grid_x;
+  gfx_y=this.grid_y+this;
+  gfx_lineto(this.thresh*this.grid_w+this.grid_x, this.grid_bottom, 1);
+);
+
+function SharpQ(x,y,w)(
+  this.w4=w/4;
+  this.w2=w/2;
+  gfx_x=x;
+  gfx_y=y;
+  gfx_lineto(x+this.w4+1,y,1);
+  gfx_lineto(x+this.w2+1,y-this.w2,1);
+  gfx_lineto(x+this.w2+this.w4,y,1);
+  gfx_lineto(x+w,y,1);
+);
+function WideQ(x,y,w)(
+  this.w5=w/5;
+  this.w53=w/5*3;
+  this.w54=w/5*4;
+  this.w52=w/5*2;
+  this.w2=w/2;
+  gfx_x=x;
+  gfx_y=y;
+  gfx_lineto(x+this.w5,y,1);
+  gfx_lineto(x+this.w52,y-this.w2,1);
+  gfx_lineto(x+this.w53,y-this.w2,1);
+  gfx_lineto(x+this.w54,y,1);
+  gfx_lineto(x+w,y,1);
 );

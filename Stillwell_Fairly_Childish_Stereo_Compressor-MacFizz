@@ -1,0 +1,344 @@
+// Copyright 2006, Thomas Scott Stillwell
+// All rights reserved.
+//
+//Redistribution and use in source and binary forms, with or without modification, are permitted
+//provided that the following conditions are met:
+//
+//Redistributions of source code must retain the above copyright notice, this list of conditions
+//and the following disclaimer.
+//
+//Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+//and the following disclaimer in the documentation and/or other materials provided with the distribution.
+//
+//The name of Thomas Scott Stillwell may not be used to endorse or
+//promote products derived from this software without specific prior written permission.
+//
+//THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+//IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+//FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+//BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+//PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+//THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+desc:Stillwells Fairly Childish Stereo Compressor/Limiter - GUI
+desc:Stillwells Fairly Childish Stereo Compressor/Limiter, similar to F670 [Stillwell]
+//tags: dynamics compressor limiter stereo
+//author: Stillwell/MacFizz
+
+import swipe.jsfx-inc
+import macfizz-toolbox.jsfx-inc
+import macfizz-gui.jsfx-inc
+
+
+slider1:0<-60,0,0.1>-L/Lat Threshold (dB)
+slider2:0<-60,0,0.1>-R/Vert Threshold (dB)
+slider3:70<0,100,0.1>-L/Lat Bias
+slider4:70<0,100,0.1>-R/Vert Bias
+slider5:0<-30,30,0.1>-L/Lat Makeup Gain
+slider6:0<-30,30,0.1>-R/Vert Makeup Gain
+slider7:0<0,2,1{Left/Right,Lat/Vert,test}>-AGC
+slider8:1<1,6,1>-L/Lat Time Constant
+slider9:1<1,6,1>-R/Vert Time Constant
+slider10:100<1,10000,1>-L/Lat RMS Window
+slider11:100<1,10000,1>-R/Vert RMS Window
+
+slider12:1<0,1,1{no,yes}>-Stereo link
+
+slider20:10<1,50,1>-Vu meter Balistics
+
+slider60:0<0,10,1>-Theme
+
+in_pin:left input
+in_pin:right input
+out_pin:left output
+out_pin:right output
+
+@init
+  log2db = 8.6858896380650365530225783783321; // 20 / ln(10)
+  db2log = 0.11512925464970228420089957273422; // ln(10) / 20
+  co.fcsc_init();
+  knob1.init_knob(1,"L/Lat","dB",-60,0,1,.5,.5,.7);
+  knob2.init_knob(2,"R/Vert","dB",-60,0,1,.5,.5,.7);
+  knob3.init_knob(3,"L/Lat","",0,100,0,.7,.7,.7);
+  knob3.novalue=1;
+  knob4.init_knob(4,"R/Vert","",0,100,0,.7,.7,.7);
+  knob4.novalue=1;
+  knob5.init_knob(5,"","dB",-30,30,1,.7,.5,.5);
+  knob6.init_knob(6,"","dB",-30,30,1,.7,.5,.5);
+
+  knob7.init_knob(7,"","",0,1,0,.6,.6,.6);
+  knob7.novalue=1;
+  knob7.lowangle=-1;
+  knob7.highangle=1;
+  knob7.pot_type=1;
+  knob7.labstr=1;
+
+  knob8.init_knob(8,"","",1,6,0,.7,1,.7);
+  knob9.init_knob(9,"","",1,6,0,.7,1,.7);
+  knob10.init_knob(10,"","ms",1,1000,0,.8,.8,.8);
+  knob11.init_knob(11,"","ms",1,1000,0,.8,.8,.8);
+
+  knob20.init_knob(20,"","",1,50,0,.7,.7,.7);
+  knob20.novalue=1;
+  knob20.bias=2;
+
+  knob60.init_knob(60,"Theme","",0,10,0,.7,.7,.7);
+  //col.no_bot=1;
+
+//chkms.checked=slider7;
+chkstereo.checked=slider12;
+chkstereo.titleR=1;
+
+@slider
+  co.fcsc_set(slider7,slider1,slider2,slider3,slider4,slider5,slider6,slider8,slider9,slider10,slider11);
+  set_theme(slider60);
+  slider7 ? (
+    knob1.label="  LATERAL\nTHRESHOLD";
+    knob2.label=" VERTICAL\nTHRESHOLD";
+    knob3.label="BIAS";
+    knob4.label="BIAS";
+    knob5.label="LATERAL GAIN";
+    knob6.label="VERTICAL GAIN";
+    knob8.label="     LATERAL\nTIME CONSTANT";
+    knob9.label="     VERTICAL\nTIME CONSTANT";
+    knob10.label="   RMS\nWINDOW";
+    knob11.label="   RMS\nWINDOW";
+    knob7.disp_value="Lat/Vert";
+  ):(
+    knob1.label="    LEFT\nTHRESHOLD";
+    knob2.label="    RIGHT\nTHRESHOLD";
+    knob3.label="BIAS";
+    knob4.label="BIAS";
+    knob5.label="LEFT GAIN";
+    knob6.label="RIGHT GAIN";
+    knob8.label="       LEFT\nTIME CONSTANT";
+    knob9.label="       RIGHT\nTIME CONSTANT";
+    knob10.label="   RMS\nWINDOW";
+    knob11.label="   RMS\nWINDOW";
+    knob7.disp_value="Left/Right";
+  );
+  SWIPE.WidgetChanged = TRUE;
+
+@sample
+spl0 || spl1 != 0 ?(playing=1):(playing=0);
+
+spl0 == spl1 ? (mono=1):(mono=0);
+SWIPE.WidgetChanged ? (
+  SWIPE.WidgetChanged = FALSE;
+  set_theme(slider60);
+  co.fcsc_set(slider7,slider1,slider2,slider3,slider4,slider5,slider6,slider8,slider9,slider10,slider11);
+  slider7 ? (
+    knob1.label="  LATERAL\nTHRESHOLD";
+    knob2.label=" VERTICAL\nTHRESHOLD";
+    knob3.label="BIAS";
+    knob4.label="BIAS";
+    knob5.label="LATERAL GAIN";
+    knob6.label="VERTICAL GAIN";
+    knob8.label="     LATERAL\nTIME CONSTANT";
+    knob9.label="     VERTICAL\nTIME CONSTANT";
+    knob10.label="   RMS\nWINDOW";
+    knob11.label="   RMS\nWINDOW";
+    knob7.disp_value="Lat/Vert";
+  ):(
+    knob1.label="    LEFT\nTHRESHOLD";
+    knob2.label="    RIGHT\nTHRESHOLD";
+    knob3.label="BIAS";
+    knob4.label="BIAS";
+    knob5.label="LEFT GAIN";
+    knob6.label="RIGHT GAIN";
+    knob8.label="       LEFT\nTIME CONSTANT";
+    knob9.label="       RIGHT\nTIME CONSTANT";
+    knob10.label="   RMS\nWINDOW";
+    knob11.label="   RMS\nWINDOW";
+    knob7.disp_value="Left/Right";
+  );
+);
+
+!slider7 ? (
+  slider12 ? (
+    slider2=slider1;
+    slider4=slider3;
+    slider6=slider5;
+    slider9=slider8;
+    slider11=slider10;
+  );
+);
+
+playing == 1 ? (
+  co.fcsc_do(spl0,spl1);
+  spl0=co.outL;
+  spl1=co.outR;
+);
+
+@gfx 555 365
+
+  gfx_mode=0;
+
+  SWIPE(gfx_w, gfx_h) ?
+  (
+    #msg="";
+    #nom_fx ="License LGPL / (C) 2018 Joanny Krafft";
+
+    playing == 1 ? (
+      strcat(#msg,"Processing | ");
+      mono == 1 ? (#mode="Mono | "):(#mode="Stereo | ");
+    );
+    strcat(#msg,#mode);
+    strcat(#msg,#nom_fx);
+    _effect.EffectBasic("Stillwell's Fairly Childish Stereo Compressor",#msg);
+
+    w = 100;
+    wp=40;
+    h = 80;
+    hy = 70;
+    ypad=70;
+    x1= x = 160;//(gfx_w - w * 5) * 0.5 -60;
+    ys= y = 50;
+
+  !bcred.checked & !binfos.checked ? main=1;
+  main ? (
+    bcred.checked=binfos.checked=0;
+
+    co.meter_x=20;
+    co.meter_y=y-5;
+    co.meter_w=130;
+    co.vu_h=100;
+    col.vu_meter_b=slider20;
+    col.vu_grmeter(co.meter_x,co.meter_y,co.meter_w,co.vu_h,co.lgr);
+
+    knob20.draw_pot(co.meter_x+co.meter_w/2-40/2,co.meter_y+co.vu_h,40,slider20);
+    knob20.process_knob();
+
+    co.meter_y=y-5+h+ypad;
+    cor.vu_meter_b=slider20;
+    chkstereo.checked && slider7==0 ? (
+       cor.vu_grmeter(20,co.meter_y,130,100,co.lgr);
+     ):cor.vu_grmeter(20,co.meter_y,130,100,co.rgr);
+
+    knob7.draw_pot(x+w*3,y+h+30,50,slider7);
+    knob7.process_knob();
+    /*!chkms.checked ? (
+      slider12=chkstereo.draw_chkbox(x+w*3,y+h+55,10,"Stereo link",5);
+    );*/
+
+    gfx_r=gfx_g=gfx_b=0;
+    gfx_x=170;
+    gfx_y=y+h+ypad-15;
+
+    gfx_r = gfx_g = gfx_b = 0; gfx_x = x + 25; gfx_y = y ;
+    knob1.draw_pot(x,y,w,slider1);
+
+    knob1.process_knob();
+    y+=h+ypad;
+
+    knob2.draw_pot(x,y,w,slider2);
+
+    knob2.process_knob();
+
+    x+=w-20;
+    y=ys+h;
+    gfx_r=gfx_g=gfx_b=0;
+    gfx_x=120+w+20;
+    gfx_y=y+h+h/2+ypad-15;
+
+    knob3.draw_pot(x,y,wp,slider3);
+
+    knob3.process_knob();
+    y+=h+ypad;
+
+    knob4.draw_pot(x,y,wp,slider4);
+
+    knob4.process_knob();
+
+    x+=w/5;
+    y=ys;
+    gfx_r=gfx_g=gfx_b=0;
+    gfx_x=120+w*2+15;
+    gfx_y=y+h+ypad-15;
+
+    knob5.draw_pot(x,y,w,slider5);
+
+    knob5.process_knob();
+    y+=h+ypad;
+
+    knob6.draw_pot(x,y,w,slider6);
+
+    knob6.process_knob();
+    x+=w;
+    y=ys;
+    gfx_r=gfx_g=gfx_b=0;
+    gfx_x=170+w*3+15;
+    gfx_y=y+h+ypad-15;
+
+    knob8.draw_pot(x,y,w,slider8);
+
+    knob8.process_knob();
+    y+=h+ypad;
+
+    knob9.draw_pot(x,y,w,slider9);
+
+    knob9.process_knob();
+    x+=w;
+    y=ys;
+    //GfxDrawRect3D(x,y-5,x+1*w,y+h*2+15+ypad,1);
+    knob10.draw_pot(x,y+h/2,wp+20,slider10);
+
+    knob10.process_knob();
+    y+=h+ypad;
+
+    knob11.draw_pot(x,y+h/2,wp+20,slider11);
+
+    knob11.process_knob();
+
+    mouse_wheel=0;
+
+  );
+  bcred.checked ? (
+        gfx_x=12;
+        gfx_y=35;
+        binfos.checked=0;
+        set_wcolor();
+        gfx_drawstr("(C) 2017, Joanny Krafft
+  NO WARRANTY IS GRANTED. THIS PLUG-IN IS PROVIDED ON AN \"AS IS\" BASIS, WITHOUT
+  WARRANTY OF ANY KIND.
+
+  Based on:
+    Thomas Scott Stillwell's Fairly Childish Stereo Compressor
+
+    GUI Framework:
+        SWIPE by Derek John Evans http://www.wascal.net/music/
+
+    All other (knobs, checkboxes, LED) by Joanny Krafft
+      ");
+      );
+  binfos.checked ? (
+      bcred.checked=0;
+      gfx_x=12;
+      gfx_y=35;
+      set_wcolor();
+      gfx_drawstr("This was made as a test for JS GUI.
+  It was used mainly to make a point here:
+        https://forum.cockos.com/showthread.php?p=1929592#post1929592
+
+  Come test it on the Reaper mix contest every month:
+        https://reapercontest.wixsite.com/home
+
+
+  Use Shift for fine knob usage.");
+  knob60.draw_pot(20,200,60,slider60);
+  knob60.process_knob();
+
+    );
+
+  gfx_x=1;
+  gfx_y=1;
+  gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
+
+   _effect.EffectDone();
+//   binfos.button(gfx_w-120,5,"Infos");
+//   bcred.button(gfx_w-70,5,"Credits");
+ infoscred(gfx_w-120,2);
+  );
+mouse_wheel=0;

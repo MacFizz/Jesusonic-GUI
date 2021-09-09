@@ -1,0 +1,238 @@
+// Copyright 2006, Thomas Scott Stillwell
+// All rights reserved.
+//
+//Redistribution and use in source and binary forms, with or without modification, are permitted
+//provided that the following conditions are met:
+//
+//Redistributions of source code must retain the above copyright notice, this list of conditions
+//and the following disclaimer.
+//
+//Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+//and the following disclaimer in the documentation and/or other materials provided with the distribution.
+//
+//The name of Thomas Scott Stillwell may not be used to endorse or
+//promote products derived from this software without specific prior written permission.
+//
+
+
+//THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+//IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+//FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+//BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+//PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+//THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+desc:Stillwells Express Bus Compressor - GUI
+desc:Express Bus Compressor [Stillwell]
+//tags: dynamics compressor
+//author: Stillwell/MacFizz
+
+import swipe.jsfx-inc
+import sebc.jsfx-inc
+import macfizz-gui.jsfx-inc
+
+slider1:0<-60,0,0.1>-Threshold (dB)
+slider2:1<1,20,0.1>-Ratio
+slider3:0<-20,20,0.1>-Gain
+slider4:0<0,1,1{Hard,Soft}>-Knee
+slider5:0<0,1,1{Normal,Sidechain}>-Detector Input
+slider6:0<0,1,1{No,Yes}>-Automatic Make-Up
+slider7:0<0,1,1{Peak,RMS}>-Detection
+slider8:0<0,1,1{Feedforward,Feedback}>-Detection Source
+
+slider20:10<1,50,1>-Vu meter Balistics
+
+slider60:0<0,10,1>-Theme
+
+in_pin:left input
+in_pin:right input
+in_pin:sidechain left input
+in_pin:sidechain right input
+out_pin:left output
+out_pin:right output
+
+@init
+  log2db = 8.6858896380650365530225783783321; // 20 / ln(10)
+  db2log = 0.11512925464970228420089957273422; // ln(10) / 20
+  main=1;
+
+  co.init_ebcomp();
+
+  kb_tresh.init_knob(1,"THRESHOLD","dB",-60,0,1,.5,.5,1);
+  kb_ratio.init_knob(2,"RATIO",":1",1,20,1,.7,.7,.7);
+  kb_gain.init_knob(3,"GAIN","dB",-20,20,1,1,.5,.5);
+
+  kb_knee.init_knob(4,"Knee","",0,1,0,.5,.5,.5);
+  kb_knee.lowangle=2.3;
+  kb_knee.highangle=-2.3;
+  kb_knee.disp_value=0;
+  kb_knee.novalue=1;
+  kb_knee.pot_type=1;
+  kb_detectin.init_knob(5,"Detector input","",0,1,0,.5,.5,.5);
+  kb_detectin.lowangle=2.3;
+  kb_detectin.highangle=-2.3;
+  kb_detectin.disp_value=0;
+  kb_detectin.novalue=1;
+  kb_detectin.pot_type=1;
+  kb_amakeup.init_knob(6,"Auto Mgain","",0,1,0,.5,.5,.5);
+  kb_amakeup.lowangle=2.3;
+  kb_amakeup.highangle=-2.3;
+  kb_amakeup.disp_value=0;
+  kb_amakeup.novalue=1;
+  kb_amakeup.pot_type=1;
+  kb_detection.init_knob(7,"Detection","",0,1,0,.5,.5,.5);
+  kb_detection.lowangle=2.3;
+  kb_detection.highangle=-2.3;
+  kb_detection.disp_value=0;
+  kb_detection.novalue=1;
+  kb_detection.pot_type=1;
+  kb_detectsrc.init_knob(8,"Detection source","",0,1,0,.5,.5,.5);
+  kb_detectsrc.lowangle=2.3;
+  kb_detectsrc.highangle=-2.3;
+  kb_detectsrc.disp_value=0;
+  kb_detectsrc.novalue=1;
+  kb_detectsrc.pot_type=1;
+
+  knob20.init_knob(20,"","",1,50,0,.7,.7,.7);
+  knob20.novalue=1;
+  knob20.bias=2;
+
+  knob60.init_knob(60,"Theme","",0,10,0,.7,.7,.7);
+
+@slider
+  co.set_ebcomp(slider1,slider2,slider3,slider4,slider5,slider6,slider7,slider8);
+  knee.checked=slider4;
+  set_theme(slider60);
+  Update_Settings=TRUE;
+
+@sample
+spl0!=0 || spl1!=0 ?(playing=1):(playing=0);
+
+spl0 == spl1 ? (mono=1):(mono=0);
+
+
+Update_Settings ? (
+  Update_Settings=FALSE;
+  set_theme(slider60);
+  co.set_ebcomp(slider1,slider2,slider3,slider4,slider5,slider6,slider7,slider8);
+);
+
+playing ? (
+  co.sideL=spl2;
+  co.sideR=spl3;
+  co.do_ebcomp(spl0,spl1);
+  spl0=co.outL;
+  spl1=co.outR;
+);
+
+@gfx 440 355
+
+  gfx_mode=0;
+
+  SWIPE(gfx_w, gfx_h) ?
+  (
+    #msg="";
+    #nom_fx ="License LGPL / (C) 2018 Joanny Krafft";
+
+    playing == 1 ? (
+      strcat(#msg,"Processing | ");
+      mono == 1 ? (#mode="Mono | "):(#mode="Stereo | ");
+    );
+    strcat(#msg,#mode);
+    strcat(#msg,#nom_fx);
+    _effect.EffectBasic("Stillwell's Express Bus Compressor",#msg);
+
+    w = 100;
+    wp=40;
+    h = 80;
+    hy = 70;
+    ypad=20;
+    xpad=45;
+    x1= x = 20;//(gfx_w - w * 5) * 0.5 -60;
+    ys= y = 40;
+
+  main ? (
+    kb_tresh.draw_pot(x,y,w,slider1);
+    kb_tresh.process_knob();
+    x+=w+xpad;
+    kb_ratio.draw_pot(x,y,w,slider2);
+    kb_ratio.process_knob();
+    x+=w+xpad;
+    kb_gain.draw_pot(x,y,w,slider3);
+    kb_gain.process_knob();
+    y+=w+ypad;
+    x=20;
+    w=60;
+    xpad=x;
+    ypad=40;
+    vu_h=140;
+    co.vu_meter_b=slider20;
+    co.vu_grmeter(x,y,180,130,co.gr);
+    knob20.draw_pot(co.meter_x+co.meter_w/2-40/2,co.meter_y+co.vu_h-10,40,slider20);
+    knob20.process_knob();
+    x+=200;
+    knee.titleR=1;
+    slider4=knee.draw_chkbox(x,y,10,"Soft Knee",1);
+    kb_detection.draw_pot(x+w+50,y-5,w,slider7);
+    kb_detection.process_knob();
+    gfx_r=gfx_g=gfx_b=.3;
+    draw_label(x+w*2+50,y+w,"Peak");
+    draw_label(x+60+w,y+w,"RMS");
+    kb_detectsrc.draw_pot(x+w+50,y+w+10,w,slider8);
+    kb_detectsrc.process_knob();
+    gfx_r=gfx_g=gfx_b=.3;
+    draw_label(x+w*2+50,y+w*2+10,"  Feed\nforward");
+    draw_label(x+60+w,y+w*2+10,"Feed\nback");
+    y+=vu_h/2-10;
+    mgain.titleR=1;
+    slider6=mgain.draw_chkbox(x,y,10,"Automatic\nMakeup gain",1);
+    y+=vu_h/2-10;
+    schain.titleR=1;
+    slider5=schain.draw_chkbox(x,y,10,"Side chain",1);
+
+    mouse_wheel=0;
+  );
+  bcred.checked ? (
+        gfx_x=12;
+        gfx_y=35;
+        binfos.checked=0;
+        set_wcolor();
+        gfx_drawstr("(C) 2017, Joanny Krafft
+  NO WARRANTY IS GRANTED. THIS PLUG-IN IS PROVIDED ON AN \"AS IS\" BASIS, WITHOUT
+  WARRANTY OF ANY KIND.
+
+  Based on:
+    Thomas Scott Stillwell's Express Bus Compressor
+
+    GUI Framework:
+        SWIPE by Derek John Evans http://www.wascal.net/music/
+
+    All other (knobs, checkboxes, LED) by Joanny Krafft
+      ");
+      );
+  binfos.checked ? (
+      gfx_x=12;
+      gfx_y=35;
+      set_wcolor();
+      gfx_drawstr("This was made as a test for JS GUI.
+  It was used mainly to make a point here:
+        https://forum.cockos.com/showthread.php?p=1929592#post1929592
+
+  Come test it on the Reaper mix contest every month:
+        https://reapercontest.wixsite.com/home
+
+
+  Use Shift for fine knob usage.");
+  knob60.draw_pot(20,200,60,slider60);
+  knob60.process_knob();
+  );
+
+  gfx_x=1;
+  gfx_y=1;
+  gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
+
+   _effect.EffectDone();
+   infoscred(gfx_w-120,2);
+  );

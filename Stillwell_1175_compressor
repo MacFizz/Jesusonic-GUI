@@ -17,6 +17,8 @@ slider4:20<20,2000,10>-Attack (ms)
 slider5:250<20,1000,1>-Release (ms)
 slider6:100<0,100,0.1>-Mix (%)
 
+slider20:10<.5,50,.1>-Vu meter Balistics
+
 in_pin:L in
 in_pin:R in
 out_pin:L out
@@ -44,6 +46,10 @@ out_pin:R out
   kb_1175attack.init_knob(4,"Attack","ms",20,2000,0,.5,.5,.5);
   kb_1175release.init_knob(5,"Release","ms",20,1000,0,.5,.5,.5);
   kb_1175mix.WidgetInit(6, 0, 100, "Mix", "%");
+  knob20.init_knob(20,"","",.5,50,1,.5,.5,.5);
+  knob20.novalue=1;
+  knob20.bias=2;
+  cov.no_origfx=1;
 
 @slider
   co.set_co1175(slider1,slider2,slider3,slider4,slider5,slider6);
@@ -73,7 +79,7 @@ SWIPE(gfx_w, 190) ?
   x=y=0;
 
   GfxDrawRect3D(module_x,module_y-5,module_x+5*w,module_y+h+5,1);
-  
+
   kb_1175tresh.draw_pot(module_x+x,module_y+y,w,slider1);
   kb_1175tresh.update_slider ? co.set_co1175(slider1,slider2,slider3,slider4,slider5,slider6);
   kb_1175tresh.process_knob();
@@ -140,54 +146,14 @@ SWIPE(gfx_w, 190) ?
   kb_1175mix.SliderHorzCall(module_x-w, module_y+h+15, module_x+5*w, module_y+h+25);
 
   //1175
-      co.gr_meter *= exp(1/30);
-      co.gr_meter>1 ? co.gr_meter=1; // decay meter here so if the audio processing stops it doesnt "stick"
-      gfx_r=gfx_g=gfx_b=0; gfx_a=1;
-
-      co.meter_x=module_x + 5*w+10;
-      co.meter_y=module_y-5;
-      co.meter_w=200;
-      co.meter_bot=21;
-      co.meter_h=20;
-      co.vu_h=100;
-      co.xscale=co.meter_w*20/co.meter_bot;
-
-      gfx_rect(co.meter_x,co.meter_y,co.meter_w,co.vu_h);
-
-      gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
-      gfx_y=co.meter_y;
-      gr_pos=max(co.meter_x,co.meter_w + log10(co.gr_meter)*co.xscale+co.meter_x);
-      gfx_x=gr_pos;
-      gfx_rectto(co.meter_w+co.meter_x,co.meter_h+co.meter_y);
-      gfx_line(co.meter_x+co.meter_w/2,co.meter_y+co.vu_h,gr_pos,co.meter_y);
-
-
-      gfx_r=gfx_g=gfx_b=1.0; gfx_a=0.6;
-
-      co.s2=sqrt(2)/2;
-      co.g = co.s2;
-      gfx_setfont(3);
-      while(
-        gfx_x=co.meter_w + log10(co.g)*co.xscale + co.meter_x;
-        gfx_x >= co.meter_x ?
-        (
-          gfx_y=co.meter_y;
-          gfx_lineto(gfx_x,co.meter_h+co.meter_y,0);
-          gfx_y=co.meter_h-gfx_texth+co.meter_y;
-          gfx_x+=2;
-          gfx_drawnumber(log10(co.g)*20,0);
-          gfx_drawchar($'d');
-          gfx_drawchar($'B');
-        );
-        co.g*=co.s2;
-        gfx_x >=0;
-      );
-      gfx_a=1;
-
-      gfx_x=0+co.meter_x; gfx_y=co.meter_h/2 - gfx_texth/2+co.meter_y+h+10;
-      gfx_drawnumber(log10(co.gr_meter)*20,1);
-      gfx_drawchar($'d');
-      gfx_drawchar($'B');
+  co.meter_x=module_x + 5*w+10;
+  co.meter_y=module_y-5;
+  co.meter_w=200;
+  co.vu_h=100;
+  cov.vu_meter_b=slider20;
+  cov.vu_grmeter(co.meter_x,co.meter_y,co.meter_w,co.vu_h,co.gr);
+  knob20.draw_pot(co.meter_x+co.meter_w/2-40/2,co.meter_y+co.vu_h-30,40,slider20);
+  knob20.process_knob();
 
   _effect.EffectDone();
 );

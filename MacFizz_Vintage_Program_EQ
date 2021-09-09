@@ -1,0 +1,803 @@
+import macfizz-toolbox.jsfx-inc
+import swipe.jsfx-inc
+import macfizz-gui.jsfx-inc
+
+desc:MacFizz Pultec-ish Vintage Program EQ - GUI
+
+slider1:0<0,100,0.1>-Gain
+slider2:0<0,10,0.1>-Low boost
+slider3:0<0,10,0.1>-Low atten
+slider4:0<0,10,0.1>-LMid boost
+slider5:0<0,10,0.1>-LMid atten
+slider6:0<0,10,0.1>-Lmid Width
+slider7:0<0,10,0.1>-Mid boost
+slider8:0<0,10,0.1>-Mid atten
+slider9:0<0,10,0.1>-Mid Width
+slider10:0<0,10,0.1>-Hmid boost
+slider11:0<0,10,0.1>-Hmid atten
+slider12:0<0,10,0.1>-Hmid Width
+slider13:0<0,10,0.1>-High boost
+slider14:0<0,10,0.1>-High atten
+slider15:0<0,10,0.1>-High Width
+
+slider19:0<-18,18,0.01>Output (dB)
+slider20:100<0,100,0.1>-Tube
+slider24:0<0,1,1{Boost/Atten,Gain}>-Low-mid mode
+slider25:0<-10,10,0.1>-Lmid gain
+slider26:0<0,1,1{Boost/Atten,Gain}>-Mid mode
+slider27:0<-10,10,0.1>-Mid gain
+slider28:0<0,1,1{Boost/Atten,Gain}>-High-mid mode
+slider29:0<-10,10,0.1>-Hmid gain
+
+slider30:1<0,2,1{30Hz,60Hz,100Hz}>-Low freq
+slider31:2<0,4,1{200Hz,300Hz,500Hz,700Hz,1000Hz}>-Lmid freq
+slider32:3<0,8,1{500Hz,700Hz,1000Hz,1.5kHz,2kHz,3kHz,4kHz,5kHz,7kHz}>-Mid freq
+slider33:2<0,6,1{1.5kHz,2kHz,3kHz,4kHz,5kHz,7kHz,10kHz}>-Hmid freq
+slider34:3<0,6,1{3kHz,4kHz,5kHz,8kHz,10kHz,12kHz,16kHz}>-High freq
+slider35:2<0,2,1{5kHz,10kHz,20kHz}>-High freq attn
+
+//Tubes
+slider41:0.15<0,1,0.001>-Even Harmonics
+slider42:0.03<0,1,0.001>-Odd Harmonics
+slider43:0<0,1,0.001>-Fluctuation
+slider44:0<-12,12,0.001>-TS Input (dB)
+slider45:6<-12,12,0.001>-TS Output (dB)
+slider46:0<-12,12,0.001>-Output Gain (dB)
+slider47:80<0,100,1>-Saturation Amount (%)
+slider48:1<0,1,1{off,on}>-Tubes on
+
+slider50:1<0,1,1{off,on}>-Low
+slider51:1<0,1,1{off,on}>-High
+slider52:1<0,1,1{off,on}>-Lmid
+slider53:1<0,1,1{off,on}>-Mmid
+slider54:1<0,1,1{off,on}>-Hmid
+
+@init
+
+tube.tubeharmonics_init();
+
+cb_low.checked=1;
+cb_high.checked=1;
+cb_lmid.checked=1;
+cb_mmid.checked=1;
+cb_hmid.checked=1;
+//cb_tubes.checked=1;
+
+
+genhpfl.eq(10, .35, -12, 0);
+genhpfr.eq(10, .35, -12, 0);
+
+//low boost
+b100L.eq(20,.09, slider23, 0);
+b100R.eq(20,.09, slider23, 0);
+//low atten
+a100L.eq(20,.05, slider23, 0);
+a100R.eq(20,.05, slider23, 0);
+//High boost
+highL.eq(3000,.8, slider23, 0);
+highR.eq(3000,.8, slider23, 0);
+//High atten
+highaL.eq(3000,.0001, slider23, 0);
+highaR.eq(3000,.0001, slider23, 0);
+highasL.eq(3000,.3, slider23, 2);
+highasR.eq(3000,.3, slider23, 2);
+//Low mid
+LmidL.eq(500,.8, slider23, 0);
+LmidR.eq(500,.8, slider23, 0);
+LmidaL.eq(500,.8, slider23, 0);
+LmidaR.eq(500,.8, slider23, 0);
+//Mids
+mmidL.eq(500,.8, slider23, 0);
+mmidR.eq(500,.8, slider23, 0);
+mmidaL.eq(500,.8, slider23, 0);
+mmidaR.eq(500,.8, slider23, 0);
+//High mid
+HmidL.eq(500,.8, slider23, 0);
+HmidR.eq(500,.8, slider23, 0);
+HmidaL.eq(500,.8, slider23, 0);
+HmidaR.eq(500,.8, slider23, 0);
+
+//Main Screen
+  kb_input.init_knob(1,"Input","dB",-20,20,2,1,.5,.5);
+  kb_LBoost.init_knob(2,"Boost","",0,10,1,.2,.2,.2);
+  kb_LBoost.labelVoffset=10;
+//  kb_LBoost.half_needle=1;
+  kb_LBoost.no_needle=1;
+  kb_LBoost.diam_needle=1;
+  kb_LAtten.init_knob(3,"Atten","",0,10,1,.2,.2,.2);
+  kb_LAtten.labelVoffset=10;
+  kb_LAtten.no_needle=1;
+  kb_LAtten.diam_needle=1;
+  kb_LmidBoost.init_knob(4,"Boost","",0,10,1,.2,.2,.2);
+  kb_LmidBoost.labelVoffset=10;
+  kb_LmidBoost.no_needle=1;
+  kb_LmidBoost.diam_needle=1;
+  kb_LmidAtten.init_knob(5,"Atten","",0,10,1,.2,.2,.2);
+  kb_LmidAtten.labelVoffset=10;
+  kb_LmidAtten.no_needle=1;
+  kb_LmidAtten.diam_needle=1;
+  kb_LmidGain.init_knob(25,"Gain","",-10,10,1,.2,.2,.2);
+  kb_LmidGain.labelVoffset=10;
+  kb_LmidGain.no_needle=1;
+  kb_LmidGain.diam_needle=1;
+  kb_LmidWidth.init_knob(6,"Q","",0,10,1,.2,.2,.2);
+  kb_LmidWidth.novalue=1;
+  //kb_LmidWidth.labelVA=2;
+  //kb_Mmidfreq.labelVoffset=10;
+  kb_MmidBoost.init_knob(7,"Boost","",0,10,1,.2,.2,.2);
+  kb_MmidBoost.labelVoffset=10;
+  kb_MmidBoost.no_needle=1;
+  kb_MmidBoost.diam_needle=1;
+  kb_MmidAtten.init_knob(8,"Atten","",0,10,1,.2,.2,.2);
+  kb_MmidAtten.labelVoffset=10;
+  kb_MmidAtten.no_needle=1;
+  kb_MmidAtten.diam_needle=1;
+  kb_MmidGain.init_knob(27,"Gain","",-10,10,1,.2,.2,.2);
+  kb_MmidGain.no_needle=1;
+  kb_MmidGain.diam_needle=1;
+  kb_MmidWidth.init_knob(9,"Q","",0,10,1,.2,.2,.2);
+  kb_MmidWidth.novalue=1;
+  kb_HmidBoost.init_knob(10,"Boost","",0,10,1,.2,.2,.2);
+  kb_HmidBoost.labelVoffset=10;
+  kb_HmidBoost.no_needle=1;
+  kb_HmidBoost.diam_needle=1;
+  kb_HmidAtten.init_knob(11,"Atten","",0,10,1,.2,.2,.2);
+  kb_HmidAtten.labelVoffset=10;
+  kb_HmidAtten.no_needle=1;
+  kb_HmidAtten.diam_needle=1;
+  kb_HmidGain.init_knob(29,"Gain","",-10,10,1,.2,.2,.2);
+  kb_HmidGain.no_needle=1;
+  kb_HmidGain.diam_needle=1;
+  kb_HmidWidth.init_knob(12,"Q","",0,10,1,.2,.2,.2);
+  kb_HmidWidth.novalue=1;
+  kb_HighBoost.init_knob(13,"Boost","",0,10,1,.2,.2,.2);
+  kb_HighBoost.labelVoffset=10;
+  kb_HighBoost.no_needle=1;
+  kb_HighBoost.diam_needle=1;
+  kb_HighAtten.init_knob(14,"Atten","",0,10,1,.2,.2,.2);
+  kb_HighAtten.labelVoffset=10;
+  kb_HighAtten.no_needle=1;
+  kb_HighAtten.diam_needle=1;
+  kb_HighWidth.init_knob(15,"Boost Q","",0,10,1,.2,.2,.2);
+  kb_HighWidth.labelVA=2;
+  kb_HighWidth.novalue=1;
+
+  kb_Lfreq.init_knob(30,"Low Frequency","Hz",0,2,0,.5,.5,.5);
+  kb_Lfreq.lowangle=.5;
+  kb_Lfreq.highangle=2.5;
+  kb_Lfreq.disp_value=0;
+  kb_Lfreq.pot_type=2;
+  kb_Lfreq.step=1;
+  kb_Lfreq.type=3;
+  kb_Lfreq.no_arc=1;
+  kb_Lfreq.knob_scale=1;
+  kb_Lfreq.labelVA=2;
+  kb_Lfreq.valueYpos=45;
+  kb_Lfreq.labelVoffset=10;
+  kb_Lmidfreq.init_knob(31,"Frequency","Hz",0,4,0,.5,.5,.5);
+  kb_Lmidfreq.pot_type=2;
+  kb_Lmidfreq.disp_value=0;
+  kb_Lmidfreq.type=3;
+  kb_Lmidfreq.no_arc=1;
+  kb_Lmidfreq.knob_scale=1;
+  kb_Lmidfreq.labelVA=2;
+  kb_Lmidfreq.valueYpos=45;
+  kb_Lmidfreq.labelVoffset=10;
+  kb_Mmidfreq.init_knob(32,"Frequency","kHz",0,8,0,.5,.5,.5);
+  kb_Mmidfreq.pot_type=2;
+  kb_Mmidfreq.disp_value=0;
+  kb_Mmidfreq.knob_scale=1;
+  kb_Mmidfreq.no_arc=1;
+  kb_Mmidfreq.type=3;
+  kb_Mmidfreq.valueYpos=45;
+  kb_Mmidfreq.labelVA=2;
+  kb_Mmidfreq.labelVoffset=10;
+  kb_Mmidfreq.disp_value_prec=1;
+  kb_Hmidfreq.init_knob(33,"Frequency","kHz",0,6,0,.5,.5,.5);
+  kb_Hmidfreq.pot_type=2;
+  kb_Hmidfreq.disp_value=0;
+  kb_Hmidfreq.type=3;
+  kb_Hmidfreq.no_arc=1;
+  kb_Hmidfreq.labelVA=2;
+  kb_Hmidfreq.knob_scale=1;
+  kb_Hmidfreq.valueYpos=45;
+  kb_Hmidfreq.labelVoffset=10;
+  kb_Hmidfreq.disp_value_prec=1;
+  kb_HighBfreq.init_knob(34,"Boost freq","kHz",0,6,0,.5,.5,.5);
+  kb_HighBfreq.pot_type=2;
+  kb_HighBfreq.disp_value=0;
+  kb_HighBfreq.no_arc=1;
+  kb_HighBfreq.type=3;
+  kb_HighBfreq.knob_scale=1;
+  kb_HighBfreq.labelVA=2;
+  kb_HighBfreq.valueYpos=45;
+  kb_HighBfreq.labelVoffset=10;
+  kb_HighAfreq.init_knob(35,"Atten freq","kHz",0,2,0,.5,.5,.5);
+  kb_HighAfreq.pot_type=2;
+  kb_HighAfreq.lowangle=-2.5;
+  kb_HighAfreq.no_arc=1;
+  kb_HighAfreq.highangle=-.5;
+  kb_HighAfreq.knob_scale=1;
+  kb_HighAfreq.type=3;
+  kb_HighAfreq.labelVA=2;
+  kb_HighAfreq.valueYpos=45;
+  kb_HighAfreq.labelVoffset=10;
+
+//Config screen
+kb_tube.init_knob(20,"Tube","",0,100,0,.2,.2,.2);
+kb_tube.knob_scale=1;
+kb_tube.type=4;
+kb_tube.arc2=1;
+kb_tube.step=5;
+kb_tube.rascale=.3;
+kb_tube.step=10;
+kb_tube.labelVoffset=-10;
+kb_tsinput.init_knob(44,"Input","dB",-12,12,1,.2,.2,.2);
+kb_tsinput.knob_scale=1;
+kb_tsinput.type=4;
+kb_tsinput.arc2=1;
+kb_tsinput.step=2;
+kb_tsinput.labelVoffset=-10;
+kb_tsoutput.init_knob(45,"Output","dB",-12,12,1,.2,.2,.2);
+kb_tsoutput.knob_scale=1;
+kb_tsoutput.type=4;
+kb_tsoutput.arc2=1;
+kb_tsoutput.step=2;
+kb_tsoutput.labelVoffset=-10;
+//kb_tsoutput.novalue=1;
+kb_fluctuation.init_knob(43,"Fluctuation","",0,1,3,.2,.2,.2);
+kb_fluctuation.knob_scale=1;
+kb_fluctuation.type=4;
+kb_fluctuation.arc2=1;
+kb_fluctuation.step=.1;
+kb_fluctuation.labelVoffset=-10;
+kb_fluctuation.novalue=1;
+kb_evenh.init_knob(41,"Even","",0,1,3,.2,.2,.2);
+kb_evenh.knob_scale=1;
+kb_evenh.type=4;
+kb_evenh.arc2=1;
+kb_evenh.step=.1;
+kb_evenh.labelVoffset=-10;
+kb_evenh.novalue=1;
+kb_oddh.init_knob(42,"Odd","",0,1,3,.2,.2,.2);
+kb_oddh.knob_scale=1;
+kb_oddh.type=4;
+kb_oddh.arc2=1;
+kb_oddh.step=.1;
+kb_oddh.labelVoffset=-10;
+kb_oddh.novalue=1;
+kb_Saturation.init_knob(47,"Saturation","",0,100,0,.2,.2,.2);
+kb_Saturation.knob_scale=1;
+kb_Saturation.type=4;
+kb_Saturation.arc2=1;
+kb_Saturation.step=10;
+kb_Saturation.labelVoffset=-10;
+kb_Saturation.novalue=1;
+kb_outputg.init_knob(46,"Output gain","dB",-12,12,1,.2,.2,.2);
+kb_outputg.knob_scale=1;
+kb_outputg.type=4;
+kb_outputg.arc2=1;
+kb_outputg.step=2;
+kb_outputg.labelVoffset=-10;
+//kb_outputg.novalue=1;
+
+
+  main=1;
+  bsettings=1;
+  set_theme(5);
+
+@slider
+
+Update_Settings=TRUE;
+SWIPE.WidgetChanged = TRUE;
+
+@block
+tube.tubeharmonics_block();
+
+@sample
+spl0!=0 || spl1!=0 ?(playing=1):(playing=0);
+
+Update_Settings ? (
+  Update_Settings=FALSE;
+  SWIPE.WidgetChanged = FALSE;
+  tube.tubeharmonics_set(slider41,slider42,slider43,slider44,slider45,slider46);
+  satL.saturation_set(slider47);
+  satR.saturation_set(slider47);
+
+  //b100L.eq_set_boost(24/10*slider2); b100R.eq_set_boost(24/10*slider2);
+  //low boost settings
+  bcpsfreq[0]=15;
+  bcpsq[1]=.2+(.15/10*slider3);
+  bcpsgain[2]=24-(2/10*slider2);
+  bcpsfreq[3]=20;
+  bcpsq[4]=.18+(.15/10*slider3);
+  bcpsgain[5]=21-(2/10*slider2);
+  bcpsfreq[6]=40;
+  bcpsq[7]=.2+(.15/10*slider3);
+  bcpsgain[8]=18-(2/10*slider2);
+  //low atten settings
+  acpsfreq[12]=20+(150/10*slider2);
+  acpsq[13]=.15+(.45/10*slider2);
+  acpsgain[14]=-15+(6/10*slider2);
+  acpsfreq3[15]=30+(400/10*slider2);
+  acpsq[16]=.15+(.45/10*slider2);
+  acpsgain[17]=-18+(8/10*slider2);
+  acpsfreq[18]=100+(650/10*slider2);
+  acpsq[19]=.15+(.45/10*slider2);
+  acpsgain[20]=-15+(7/10*slider2);
+  //low boost
+  slider2 > 0 ? (
+    boost=bcps[slider30*3+2]/10*slider2;
+    b100L.eq_set_boost(boost); b100R.eq_set_boost(boost);
+    b100L.eq_set_freq(bcps[slider30*3]); b100R.eq_set_freq(bcps[slider30*3]);
+    b100L.eq_set_q(bcps[slider30*3+1]); b100R.eq_set_q(bcps[slider30*3+1]);
+  );
+  //low atten
+  slider3 > 0 ? (
+    atten=acps[slider30*3+14]/10*slider3;
+    a100L.eq_set_boost(atten); a100R.eq_set_boost(atten);
+    a100L.eq_set_freq(acps[slider30*3+12]); a100R.eq_set_freq(acps[slider30*3+12]);
+    a100L.eq_set_q(acps[slider30*3+13]); a100R.eq_set_q(acps[slider30*3+13]);
+  );
+
+  //Low mid
+  Lmidfreq= slider31 == 0 ? 200 :
+    slider31 == 1 ? 300 :
+    slider31 == 2 ? 500 :
+    slider31 == 3 ? 700 :
+    slider31 == 4 ? 1000;
+  //low mid boost
+  Lmidboost=(11+7/10*slider6)/10*slider4;
+  LmidQ=.45+.55/10*slider6;
+  LmidL.eq_set_boost(Lmidboost); LmidR.eq_set_boost(Lmidboost);
+  LmidL.eq_set_freq(Lmidfreq); LmidR.eq_set_freq(Lmidfreq);
+  LmidL.eq_set_q(LmidQ); LmidR.eq_set_q(LmidQ);
+  //low mid atten
+  LmidAtten=-(11+7/10*slider6)/10*slider5;
+  LmidAQ=.75+.55/10*slider5;
+  LmidaL.eq_set_boost(LmidAtten); LmidaR.eq_set_boost(LmidAtten);
+  LmidaL.eq_set_freq(Lmidfreq); LmidaR.eq_set_freq(Lmidfreq);
+  LmidaL.eq_set_q(LmidAQ); LmidaR.eq_set_q(LmidAQ);
+
+  //mid
+  Mmidfreq= slider32 == 0 ? 500 :
+    slider32 == 1 ? 700 :
+    slider32 == 2 ? 1000 :
+    slider32 == 3 ? 1500 :
+    slider32 == 4 ? 2000 :
+    slider32 == 5 ? 3000 :
+    slider32 == 6 ? 4000 :
+    slider32 == 7 ? 5000 :
+    slider32 == 8 ? 7000 ;
+  Mmidfreq>=1000 ? kb_Mmidfreq.disp_value_unit="kHz" : kb_Mmidfreq.disp_value_unit="Hz";
+  Mmidboost=(11+7/10*slider9)/10*slider7;
+  MmidQ=.45+.55/10*slider9;
+  MmidL.eq_set_boost(Mmidboost); MmidR.eq_set_boost(Mmidboost);
+  MmidL.eq_set_freq(Mmidfreq); MmidR.eq_set_freq(Mmidfreq);
+  MmidL.eq_set_q(MmidQ); MmidR.eq_set_q(MmidQ);
+  //mid atten
+  MmidAtten=-(11+7/10*slider9)/10*slider8;
+  MmidAQ=.75+.55/10*slider8;
+  MmidaL.eq_set_boost(MmidAtten); MmidaR.eq_set_boost(MmidAtten);
+  MmidaL.eq_set_freq(Mmidfreq); MmidaR.eq_set_freq(Mmidfreq);
+  MmidaL.eq_set_q(MmidAQ); MmidaR.eq_set_q(MmidAQ);
+
+  //High mid
+  Hmidfreq= slider33 == 0 ? 1500 :
+    slider33 == 1 ? 2000 :
+    slider33 == 2 ? 3000 :
+    slider33 == 3 ? 4000 :
+    slider33 == 4 ? 5000 :
+    slider33 == 5 ? 7000 :
+    slider33 == 6 ? 10000;
+  Hmidfreq>=1000 ? kb_Hmidfreq.disp_value_unit="kHz" : kb_Hmidfreq.disp_value_unit="Hz";
+  Hmidboost=(11+7/10*slider12)/10*slider10;
+  HmidQ=.45+.55/10*slider12;
+  HmidL.eq_set_boost(Hmidboost); HmidR.eq_set_boost(Hmidboost);
+  HmidL.eq_set_freq(Hmidfreq); HmidR.eq_set_freq(Hmidfreq);
+  HmidL.eq_set_q(HmidQ); HmidR.eq_set_q(HmidQ);
+  //High mid atten
+  HmidAtten=-(11+7/10*slider12)/10*slider11;
+  HmidAQ=.75+.55/10*slider11;
+  HmidaL.eq_set_boost(HmidAtten); HmidaR.eq_set_boost(HmidAtten);
+  HmidaL.eq_set_freq(Hmidfreq); HmidaR.eq_set_freq(Hmidfreq);
+  HmidaL.eq_set_q(HmidAQ); HmidaR.eq_set_q(HmidAQ);
+
+  //Highs settings
+  highQ= slider34 == 0 ? .9 - (.4/10*slider15) :
+    slider34 == 1 ? .9 :
+    slider34 == 2 ? .8 :
+    slider34 == 3 ? .7 :
+    slider34 == 4 ? .5 :
+    slider34 == 5 ? .4 :
+    slider34 == 6 ? .3 ;
+  highfreq= slider34 == 0 ? 3000 :
+    slider34 == 1 ? 4000 :
+    slider34 == 2 ? 5000 :
+    slider34 == 3 ? 8000 :
+    slider34 == 4 ? 10000 :
+    slider34 == 5 ? 12000 :
+    slider34 == 6 ? 16000 ;
+  highfreq>=1000 ? kb_Highfreq.disp_value_unit="kHz" : kb_Highfreq.disp_value_unit="Hz";
+  //high freq settings
+  highafreq= slider35 == 0 ? 10000 :
+    slider35 == 1 ? 15000 :
+    slider35 == 2 ? 20000 ;
+  highfreq>=1000 ? kb_HighAfreq.disp_value_unit="kHz" : kb_HighAfreq.disp_value_unit="Hz";
+  //High boost
+  highboost=(18-9/10*slider15)/10*slider13;
+  highL.eq_set_freq(highfreq); highR.eq_set_freq(highfreq);
+  highL.eq_set_q(highQ); highR.eq_set_q(highQ);
+  highL.eq_set_boost(highboost); highR.eq_set_boost(highboost);
+
+  /*highL.eq_set_freq(highfreq); highR.eq_set_freq(highfreq);
+  highL.eq_set_q(highQ); highR.eq_set_q(highQ);
+  highL.eq_set_boost(18/10*slider10); highR.eq_set_boost(18/10*slider10);*/
+
+  //high atten
+  highaL.eq_set_freq(highafreq); highaR.eq_set_freq(highafreq);
+  highaL.eq_set_boost(-15/10*slider14); highaR.eq_set_boost(-15/10*slider14);
+  highasL.eq_set_freq(highaL.freq+5000); highasR.eq_set_freq(highaR.freq+5000);
+  highasL.eq_set_boost(min(highaL.boost+5,0)); highasR.eq_set_boost(min(highaR.boost+5,0));
+);
+
+spl0 = genhpfl.eq_do(spl0)*.3+spl0*.7;
+spl1 = genhpfr.eq_do(spl1)*.3+spl1*.7;
+
+slider48 ? (
+  tube.tubeharmonics_do(spl0,spl1);
+  slider20 > 0 ? (
+    spl0=satL.saturation_do(tube.outL)*slider20/100+spl0*(1-slider20/100);
+    spl1=satR.saturation_do(tube.outR)*slider20/100+spl1*(1-slider20/100);
+  );
+);
+//Low
+slider50 ? (
+  slider2 > 0 ? (
+    spl0 = b100L.eq_do(spl0);
+    spl1 = b100R.eq_do(spl1);
+  );
+
+  slider3 > 0 ? (
+    spl0 = a100L.eq_do(spl0);
+    spl1 = a100R.eq_do(spl1);
+  );
+);
+
+//low mid
+slider52 ? (
+  slider4 > 0 ?(
+    spl0 = LmidL.eq_do(spl0);
+    spl1 = LmidR.eq_do(spl1);
+  );
+  slider5 > 0 ? (
+    spl0 = LmidaL.eq_do(spl0);
+    spl1 = LmidaR.eq_do(spl1);
+  );
+);
+//Mids
+slider53 ? (
+  slider7 > 0 ? (
+    spl0 = MmidL.eq_do(spl0);
+    spl1 = MmidR.eq_do(spl1);
+  );
+  slider8 > 0 ?(
+    spl0 = MmidaL.eq_do(spl0);
+    spl1 = MmidaR.eq_do(spl1);
+  );
+);
+//High mids
+slider54 ? (
+  slider10 > 0 ? (
+    spl0 = HmidL.eq_do(spl0);
+    spl1 = HmidR.eq_do(spl1);
+  );
+  slider11 > 0 ? (
+    spl0 = HmidaL.eq_do(spl0);
+    spl1 = HmidaR.eq_do(spl1);
+  );
+);
+//Highs
+slider51 ? (
+  slider13 > 0 ? (
+    spl0 = highL.eq_do(spl0);
+    spl1 = highR.eq_do(spl1);
+  );
+  slider14 > 0 ? (
+    spl0 = highaL.eq_do(spl0);
+    spl1 = highaR.eq_do(spl1);
+    spl0 = highasL.eq_do(spl0);
+    spl1 = highasR.eq_do(spl1);
+  );
+);
+
+@gfx 560 475
+gfx_mode=0;
+gfx_dest=-1;
+SWIPE(gfx_w, gfx_h) ?
+(
+  #msg="";
+  #nom_fx ="License LGPL / (C) 2018 Joanny Krafft";
+
+  playing == 1 ? (
+    strcat(#msg,"Processing | ");
+    mono == 1 ? (#mode="Mono | "):(#mode="Stereo | ");
+  );
+  strcat(#msg,#mode);
+  strcat(#msg,#nom_fx);
+  _effect.EffectBasic("MacFizz\'s Vintage Program EQ",#msg);
+
+  w = 95;
+  w2=50;
+  wp=40;
+  h = 90;
+  h2=120;
+  hy = 70;
+  ypad=10;
+  xpad=5;
+  x1= x = 20;
+  ys= y = 45;
+
+main ? (
+cb_low.titleR=1;
+cb_low.titleA=.1;
+  slider50=cb_low.draw_chkbox(x,y,10,"Low",1);
+  //GfxDrawRect3D(x,y,x+w+6,y+h,1);
+  kb_LBoost.draw_pot(x,y,w,slider2);
+  kb_LBoost.process_knob();
+  x+=w;
+  kb_LAtten.draw_pot(x,y,w,slider3);
+  kb_LAtten.process_knob();
+  x=xs+w;
+  y+=h;
+  kb_Lfreq.disp_value=slider30 == 0 ? 30 :
+    slider30 == 1 ? 60:
+    slider30 == 2 ? 100;
+  kb_Lfreq.draw_pot(x,y,w2,slider30);
+  kb_Lfreq.process_knob();
+    y=ys;
+
+  x=x1+3*w;
+  cb_tubes.titleR=0;
+  cb_tubes.titleA=.1;
+  slider48=cb_tubes.draw_chkbox(x-w2-20,y+h+30,10,"Tubes",1);
+  tube.led=slider48 ? min((abs(tube.h0-slider41*2)*250+.3)*slider20/100,1)
+    : tube.led>0 ? tube.led-.05;
+  gfx_a=1;
+  tube_led.draw_led(x-w2-15,y+h+60,7,tube.led,tube.led/3,tube.led/3);
+
+  cb_high.titleR=1;
+  cb_high.titleA=.1;
+  slider51=cb_high.draw_chkbox(x,y,10,"High",1);
+  kb_HighBoost.draw_pot(x,y,w,slider13);
+  kb_HighBoost.process_knob();
+  y+=h;
+  x-=w2/3;
+  kb_HighWidth.draw_pot(x,y,w2,slider15);
+  kb_HighWidth.process_knob();
+  gfx_a=.6;
+  WideQ(x,y+h/2,15);
+  SharpQ(x+w2*.8,y+h/2,15);
+  x+=w2+w2/3*2;
+  kb_HighBfreq.disp_value=highfreq/1000;
+  kb_HighBfreq.draw_pot(x,y,w2,slider34);
+  kb_HighBfreq.process_knob();
+  y-=h;
+  x=x1+w*4.1;
+  kb_HighAtten.draw_pot(x,y,w,slider14);
+  kb_HighAtten.process_knob();
+  y+=h;
+  x=x1+w*4.7;
+  kb_HighAfreq.disp_value=highafreq/1000;
+  kb_HighAfreq.draw_pot(x,y,w2,slider35);
+  kb_HighAfreq.process_knob();
+
+  x=xs;
+  y+=h-5;
+  gfx_rect(11,y-5,gfx_w-22,2);
+  cb_lmid.titleR=1;
+  cb_lmid.titleA=.1;
+  slider52=cb_lmid.draw_chkbox(x+x1,y,10,"Low mid",1);
+  slider24=cb_lmidmode.draw_chkbox(x+w-10,y+h-20,10,"",3);
+  kb_Lmidfreq.disp_value=Lmidfreq;
+  kb_Lmidfreq.draw_pot(x+w-w2*.7,y+h*1.5,w2,slider31);
+  kb_Lmidfreq.process_knob();
+  !slider24 ? (
+    kb_LmidBoost.draw_pot(x,y+h/2,w,slider4);
+    kb_LmidBoost.process_knob();
+    kb_LmidAtten.draw_pot(x+w2*1.5,y+h/2,w,slider5);
+    kb_LmidAtten.process_knob();
+  ):(
+    kb_LmidGain.draw_pot(x,y+h/2,w,slider25);
+    kb_LmidGain.update_slider ? (
+      slider25>0 ? (
+        slider4=slider25;
+        slider5=0;
+      ):(
+        slider5=abs(slider25);
+        slider4=0;
+      );
+    );
+    kb_LmidGain.process_knob();
+  );
+  kb_LmidWidth.draw_pot(x+w-w2*.7,y,w2,slider6);
+  kb_LmidWidth.process_knob();
+  gfx_a=.6;
+  WideQ(x+w-w2*.8,y+h*.5,15);
+  SharpQ(x+w-w2*.8+w2,y+h*.5,15);
+
+  x+=w*2;
+  cb_mmid.titleR=1;
+  cb_mmid.titleA=.1;
+  slider26=cb_mmidmode.draw_chkbox(x+w-10,y+h-20,10,"",1);
+  slider53=cb_mmid.draw_chkbox(x+x1,y,10,"Mid",1);
+  kb_Mmidfreq.disp_value= Mmidfreq >= 1000 ? Mmidfreq/1000 : Mmidfreq;
+  kb_Mmidfreq.draw_pot(x+w-w2*.7,y+h*1.5,w2,slider32);
+  kb_Mmidfreq.process_knob();
+  !slider26 ? (
+    kb_MmidBoost.draw_pot(x,y+h/2,w,slider7);
+    kb_MmidBoost.process_knob();
+    kb_MmidAtten.draw_pot(x+w2*1.5,y+h/2,w,slider8);
+    kb_MmidAtten.process_knob();
+  ):(
+    kb_MmidGain.draw_pot(x,y+h/2,w,slider27);
+    kb_MmidGain.update_slider ? (
+      slider27>0 ? (
+        slider7=slider27;
+        slider8=0;
+      ):(
+        slider8=abs(slider27);
+        slider7=0;
+      );
+    );
+    kb_MmidGain.process_knob();
+  );
+
+  kb_MmidWidth.draw_pot(x+w-w2*.7,y,w2,slider9);
+  kb_MmidWidth.process_knob();
+  gfx_a=.6;
+  WideQ(x+w-w2*.8,y+h*.5,15);
+  SharpQ(x+w-w2*.8+w2,y+h*.5,15);
+
+  x+=w*2;
+  cb_hmid.titleR=1;
+  cb_hmid.titleA=.1;
+  slider28=cb_hmidmode.draw_chkbox(x+w-10,y+h-20,10,"",1);
+  slider54=cb_hmid.draw_chkbox(x+x1,y,10,"High mid",1);
+  kb_Hmidfreq.disp_value=Hmidfreq/1000;
+  kb_Hmidfreq.draw_pot(x+w-w2*.7,y+h*1.5,w2,slider33);
+  kb_Hmidfreq.process_knob();
+  !slider28 ? (
+    kb_HmidBoost.draw_pot(x,y+h/2,w,slider10);
+    kb_HmidBoost.process_knob();
+    kb_HmidAtten.draw_pot(x+w2*1.5,y+h/2,w,slider11);
+    kb_HmidAtten.process_knob();
+  ):(
+    kb_HmidGain.draw_pot(x,y+h/2,w,slider29);
+    kb_HmidGain.update_slider ? (
+      slider29>0 ? (
+        slider10=slider29;
+        slider11=0;
+      ):(
+        slider11=abs(slider29);
+        slider10=0;
+      );
+    );
+    kb_HmidGain.process_knob();
+  );
+  kb_HmidWidth.draw_pot(x+w-w2*.7,y,w2,slider12);
+  kb_HmidWidth.process_knob();
+  gfx_a=.6;
+  WideQ(x+w-w2*.8,y+h*.5,15);
+  SharpQ(x+w-w2*.8+w2,y+h*.5,15);
+
+gfx_dest=1;
+gfx_clear;
+gfx_rect(0,0,500,500);
+kb_tube.draw_pot(100,80,w/2,slider20);
+gfx_dest=-1;
+//gfx_a=1;
+gfx_blit(1,1,0,100,80,w/2,h,100,100);
+
+);
+bcred.checked ? (
+      gfx_x=12;
+      gfx_y=35;
+      set_wcolor();
+      gfx_drawstr("(C) 2018, Joanny Krafft
+NO WARRANTY IS GRANTED. THIS PLUG-IN IS PROVIDED ON AN
+\"AS IS\" BASIS, WITHOUT WARRANTY OF ANY KIND.
+
+Based on:
+  O.Belanger\'s CookDSP EQ filters
+  Liteon\'s Tube Harmonics
+  LOSER's Saturation
+
+GUI Framework:
+      SWIPE by Derek John Evans http://www.wascal.net/music/
+
+All other (knobs, checkboxes, LED) by Joanny Krafft
+    ");
+    );
+binfos.checked ? (
+    gfx_x=12;
+    gfx_y=35;
+    set_wcolor();
+    gfx_drawstr("This was made as a test for JS GUI.
+It was used mainly to make a point here:
+      https://forum.cockos.com/showthread.php?p=1929592#post1929592
+
+Come test it on the Reaper mix contest every month:
+      https://reapercontest.wixsite.com/home
+
+
+Use Shift for fine knob usage.");
+/*knob60.draw_pot(20,200,60,slider60);
+knob60.process_knob();*/
+);
+
+bsettings.checked ? (
+  w = 80;
+  w2=70;
+  h = 60;
+  hy = 70;
+  ypad=50;
+  xpad=50;
+  x1= x = 20;//(gfx_w - w * 5) * 0.5 -60;
+  ys= y = 110;
+
+  gfx_setfont(5);
+  draw_label(x1+w*3,y-50,"Tubes settings");
+  tube.led=slider48 ? min((abs(tube.h0-slider41*2)*250+.3)*slider20/100,1)
+    : tube.led>0 ? tube.led-.05;
+  gfx_a=1;
+  gfx_setfont(3);
+  cb_tubes.titleR=1;
+  cb_tubes.titleA=.1;
+  slider48=cb_tubes.draw_chkbox(x,y-30,10,"Tubes",1);
+  tube_led.draw_led(x+w*1.2,y,7,tube.led,tube.led/3,tube.led/3);
+  kb_tube.draw_pot(x,y,w,slider20);
+  kb_tube.process_knob();
+
+  x+=w+xpad;
+  kb_tsinput.draw_pot(x,y,w,slider44);
+  kb_tsinput.process_knob();
+  x+=w+xpad;
+  kb_fluctuation.draw_pot(x,y,w,slider43);
+  kb_fluctuation.process_knob();
+  x+=w+xpad;
+  kb_tsoutput.draw_pot(x,y,w,slider45);
+  kb_tsoutput.process_knob();
+
+  y+=h+ypad;
+  x=x1;
+  gfx_x=x+5;
+  gfx_y=y+h+ypad/2;
+  gfx_lineto(gfx_x,gfx_y+5);
+  gfx_lineto(x+w*2+xpad,gfx_y);
+  gfx_lineto(gfx_x,gfx_y-5);
+  draw_label(x+w+xpad/2,y+h+ypad/2+10,"Harmonics");
+  kb_evenh.draw_pot(x,y,w,slider41);
+  kb_evenh.process_knob();
+  x+=w+xpad;
+  kb_oddh.draw_pot(x,y,w,slider42);
+  kb_oddh.process_knob();
+  x+=w+xpad;
+  kb_Saturation.draw_pot(x,y,w,slider47);
+  kb_Saturation.process_knob();
+  x+=w+xpad;
+  kb_outputg.draw_pot(x,y,w,slider46);
+  kb_outputg.process_knob();
+
+);
+
+gfx_x=1;
+gfx_y=1;
+gfx_r=1; gfx_g=gfx_b=0; gfx_a=0.8;
+
+ _effect.EffectDone();
+
+ infoscred(gfx_w-120,2);
+
+);
+mouse_wheel=0;

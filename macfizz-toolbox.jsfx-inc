@@ -1,4 +1,14 @@
 @init
+function round(num,prec)(
+  prec ? this.temp=num*(10^prec):this.temp=num;
+  this.temp > 0 ? (
+    res=floor(this.temp+.5);
+  ):(
+    res=ceil(this.temp-.5);
+  );
+  prec ? result=res/(10^prec): result=res;
+  result;
+);
 
 //Parts of cookdsp
 /////////////////////////////////////////////////////////////////
@@ -120,9 +130,11 @@ function eq_set_type(type)
 
 function eq_do(signal)
 (
+  signal !== 0 ? (
     tmp_ = (this.b0 * signal + this.b1 * this.x1 + this.b2 * this.x2 - this.a1 * this.y1 - this.a2 * this.y2) / this.a0;
     this.x2 = this.x1; this.x1 = signal; this.y2 = this.y1; this.y1 = tmp_;
     tmp_;
+  );
 );
 function delay(size)
   (
@@ -282,33 +294,56 @@ function delay(size)
   );
 
   //From Witti's softknee compressor
+  function compressor_init()(
+    this.output = 1;
+    this.transfer_A = 0;
+    this.transfer_B = 1;
+    this.gain = 1;
+    this.env = 0;
+    this.gr_meter = 1;
+    this.gr_meter_decay = exp(1/(1*srate));
+    this.s2=sqrt(2)/2;
+  );
+
+  function compressor_set(threshold,ratio,attack,release,envdec,vol,soft)(
+    this.threshold = 10^(threshold/20);
+    this.ratio = ratio;
+    this.soft = soft;
+    this.attack = exp(-1/(attack/1000*srate));
+    this.release = exp(-1/(release/1000*srate));
+    this.envelope_decay = exp(-1/(envdec/1000*srate));
+    this.vol = 10^(vol/20);
+  );
+
   function compressor_do(inL inR)
   (
-      det = max(abs(inL),abs(inR));
-      det += 0.000000000001;
-      env = det >= env ? det : det+envelope_decay*(env-det);
+    inL !==0 || inR!=0 ? (
+      this.det = max(abs(inL),abs(inR));
+      this.det += 0.000000000001;
+      this.env = this.det >= this.env ? this.det : this.det+this.envelope_decay*(this.env-this.det);
 
-      diff = abs(det-threshold);
-      tmp = 1 + (ratio -1) * min(diff,1);
-      soft ? (
-        transfer_A = (1/tmp)-1;
+      this.diff = abs(this.det-this.threshold);
+      this.tmp = 1 + (this.ratio -1) * min(this.diff,1);
+      this.soft ? (
+        this.transfer_A = (1/this.tmp)-1;
         ):(
-        transfer_A = (1/ratio)-1;
+        this.transfer_A = (1/this.ratio)-1;
         );
-      transfer_B = output * pow(threshold,-transfer_A);
+      this.transfer_B = this.output * pow(this.threshold,-this.transfer_A);
 
-      transfer_gain = env > threshold ? pow(env,transfer_A)*transfer_B:output;
-      gain = transfer_gain < gain ?
-        transfer_gain+attack*(gain-transfer_gain) :
-        transfer_gain+release*(gain-transfer_gain);
+      this.transfer_gain = this.env > this.threshold ? pow(this.env,this.transfer_A)*this.transfer_B:this.output;
+      this.gain = this.transfer_gain < this.gain ?
+        this.transfer_gain+this.attack*(this.gain-this.transfer_gain) :
+        this.transfer_gain+this.release*(this.gain-this.transfer_gain);
 
-      this.out0 = inL * gain*vol;
-      this.out1 = inR * gain*vol;
+      this.out0 = inL * this.gain*this.vol;
+      this.out1 = inR * this.gain*this.vol;
 
-      gr = log(gain)*log2dB;
-      grv = exp(gr * db2log);
-      grv < gr_meter ? gr_meter=grv : ( gr_meter*=gr_meter_decay; gr_meter>1?gr_meter=1; );
-      grmin = min( min(gr,gr) , grmin);
+      this.gr = log(this.gain)*log2dB;
+      this.grv = exp(this.gr * db2log);
+      this.grv < this.gr_meter ? this.gr_meter=this.grv : ( this.gr_meter*=this.gr_meter_decay; this.gr_meter>1?this.gr_meter=1; );
+      this.grmin = min( min(this.gr,this.gr) , this.grmin);
+    );
   );
 
   //From Witti's comp_gate
@@ -337,6 +372,9 @@ function delay(size)
   );
 
 //From LOSER's saturation
+//tags: processing amplitude gain saturation
+//author: LOSER
+//slider1:0<0,100,1>Amount (%)
   function saturation_set(sat)(
     this.foo=sat/150*$pi;
     this.bar = sin(sat/150*$pi);
@@ -348,22 +386,36 @@ function delay(size)
       ):(
       this.out=in;
       );
+    this.out;
   );
 //From Schwa's Clipper/limiter
+  function limiter_init()(
+    this.amp_dB = 8.6562;
+    this.baseline_threshold_dB = -9.0;
+    this.a = 1.017;
+    this.b = -0.025;
+    this.boost_dB = 0;
+  );
+
+  function limiter_set(lim)(
+    this.limit_dB = lim;
+  );
+
   function Limiter_do (in)(
-    limit_dB = slider27;
-    threshold_dB = baseline_threshold_dB + limit_dB;
-    this.dB = amp_dB * log(abs(in)) + boost_dB;
+    in!==0 ? (
+      this.threshold_dB = this.baseline_threshold_dB + this.limit_dB;
+      this.dB = this.amp_dB * log(abs(in)) + this.boost_dB;
 
-    (this.dB > threshold_dB) ? (
-      this.over_dB = this.dB - threshold_dB;
-      this.over_dB = a * this.over_dB + b * this.over_dB * this.over_dB;
-      this.dB = min(threshold_dB + this.over_dB, limit_dB);
+      (this.dB > this.threshold_dB) ? (
+        this.over_dB = this.dB - this.threshold_dB;
+        this.over_dB = this.a * this.over_dB + this.b * this.over_dB * this.over_dB;
+        this.dB = min(this.threshold_dB + this.over_dB, limit_dB);
+      );
+
+      this.limit=this.over_dB;
+      this.over_dB=0;
+      this.lim_out= exp(this.dB / this.amp_dB) * sign(in);
     );
-
-    this.limit=this.over_dB;
-    this.over_dB=0;
-    this.lim_out= exp(this.dB / amp_dB) * sign(in);
   );
 
 // Copyright 2006, Thomas Scott Stillwell
@@ -730,4 +782,669 @@ function fcsc_do(inL, inR)(
     this.outR = (this.sav0 - this.sav1) * 0.5;
   );
 
+);
+
+function fcsc_dotest(inL, inR)(
+  this.agc == leftright ? (
+    this.aspl0 = abs(inL);
+    this.aspl1 = abs(inR);
+    this.lmaxspl = max(this.aspl0, this.aspl1);
+    this.lmaxspl = this.lmaxspl * this.lmaxspl;
+
+    this.lrunave = this.lmaxspl + this.lrmscoef * (this.lrunave - this.lmaxspl);
+    this.ldet = sqrt(max(0,this.lrunave));
+
+    this.loverdb = 2.08136898 * log(this.ldet/this.lthreshv) * log2db;
+    this.loverdb = max(0,this.loverdb);
+
+    this.loverdb > this.lrundb ? (
+      this.lrundb = this.loverdb + this.latcoef * (this.lrundb - this.loverdb);
+    ) : (
+      this.lrundb = this.loverdb + this.lrelcoef * (this.lrundb - this.loverdb);
+    );
+    this.loverdb = max(this.lrundb,0);
+
+    this.lbias == 0 ? (
+      this.lcratio = this.lratio;
+    ) : (
+      this.lcratio = 1 + (this.lratio-1) * sqrt((this.loverdb + this.dcoffset) / (this.lbias + this.dcoffset));
+    );
+    //slider13 = lcratio;
+    //slider14 = lcratio;
+
+    this.lgr = -this.loverdb * (this.lcratio-1)/this.lcratio;
+    //slider15 = -lgr;
+    //slider16 = -lgr;
+    this.lgrv = exp(this.lgr * db2log);
+
+  ) : (
+    this.aspl0 = abs(inL+inR)/2;
+    this.aspl1 = abs(inL-inR)/2;
+    this.lmaxspl = this.aspl0;
+    this.lmaxspl = this.lmaxspl * this.lmaxspl;
+
+    this.lrunave = this.lmaxspl + this.lrmscoef * (this.lrunave - this.lmaxspl);
+    this.ldet = sqrt(max(0,this.lrunave));
+
+    this.loverdb = 2.08136898 * log(this.ldet/this.lthreshv) * log2db;
+    this.loverdb = max(0,this.loverdb);
+
+    this.loverdb > this.lrundb ? (
+      this.lrundb = this.loverdb + this.latcoef * (this.lrundb - this.loverdb);
+    ) : (
+      this.lrundb = this.loverdb + this.lrelcoef * (this.lrundb - this.loverdb);
+    );
+    this.loverdb = max(this.lrundb,0);
+
+    this.lbias == 0 ? (
+      this.lcratio = this.lratio;
+    ) : (
+      this.lcratio = 1 + (this.lratio-1) * sqrt((this.loverdb + this.dcoffset) / (this.lbias + this.dcoffset));
+    );
+
+    this.rmaxspl = this.aspl1;
+    this.rmaxspl = this.rmaxspl * this.rmaxspl;
+
+    this.rrunave = this.rmaxspl + this.rrmscoef * (this.rrunave - this.rmaxspl);
+    this.rdet = sqrt(max(0,this.rrunave));
+
+    this.roverdb = 2.08136898 * log(this.rdet/this.rthreshv) * log2db;
+    this.roverdb = max(0,this.roverdb);
+
+    this.roverdb > this.rrundb ? (
+      this.rrundb = this.roverdb + this.ratcoef * (this.rrundb - this.roverdb);
+    ) : (
+      this.rrundb = this.roverdb + this.rrelcoef * (this.rrundb - this.roverdb);
+    );
+    this.roverdb = max(this.rrundb,0);
+
+    this.rbias == 0 ? (
+      this.rcratio = this.rratio;
+    ) : (
+      this.rcratio = 1 + (this.rratio-1) * sqrt((this.roverdb + this.dcoffset) / (this.rbias + this.dcoffset));
+    );
+
+    //slider13 = lcratio;
+    //slider14 = rcratio;
+
+    this.lgr = -this.loverdb * (this.lcratio-1)/this.lcratio;
+    this.rgr = -this.roverdb * (this.rcratio-1)/this.rcratio;
+    //slider15 = -lgr;
+    //slider16 = -rgr;
+    this.lgrv = exp(this.lgr * db2log);
+    this.rgrv = exp(this.rgr * db2log);
+
+  );
+
+  this.agc == leftright ? (
+    this.outL = inL * this.lgrv * this.lmakeupv;
+    this.outR = inR * this.lgrv * this.lmakeupv;
+  ) : (
+    this.sav0 = (inL + inR) * this.lgrv;
+    this.sav1 = (inL - inR) * this.rgrv;
+    this.sav0 *= this.lmakeupv;
+    this.sav1 *= this.rmakeupv;
+    this.outL = (this.sav0 + this.sav1) * 0.5;
+    this.outR = (this.sav0 - this.sav1) * 0.5;
+  );
+
+);
+
+//By Joanny Krafft based on
+// Alberto PG (C) 2012
+// addons BWSD (C)
+function valve_set(gain,drive,output,mode,eh,oh)(
+  this.f=$pi/4;
+  this.k=2^(1/2);
+  this.gain=10^(gain/(20));
+  this.mode=mode;
+
+  mode ? (
+    this.drive=drive;
+    this.overdb=$pi;
+  ):(
+    this.drive=drive/100;
+    this.overdb=1;
+  );
+  this.output=10^((output)/20);
+  this.eh=eh;
+  this.oh=oh;
+  this.harm=1*(eh+oh)/2;
+  this.outf=this.output/this.overdb;
+);
+
+function valve_do(inL,inR)(
+  this.dry0=inL;
+  this.dry1=inR;
+
+  this.in0=inL*this.gain;
+  this.in1=inR*this.gain;
+
+  /*(this.eh===1 & this.oh ===1 & this.mode==0) ? (
+    this.optimized=1;
+    this.out0 = (this.k*sin(this.in0*this.f+this.f)-1)/30;
+    this.out1 = (this.k*sin(this.in1*this.f+this.f)-1)/30;
+  ):(*/
+    this.optimized=0;
+    this.ins0=this.in0*this.f;
+    this.out0=sin(this.ins0)*this.oh+cos(this.ins0)*this.eh-this.harm;
+    this.ins1=this.in1*this.f;
+    this.out1=sin(this.ins1)*this.oh+cos(this.ins1)*this.eh-this.harm;
+  //);
+
+  this.outL =  (this.in0  + this.out0*this.drive/10)/max(this.gain,0)*this.outf;
+  this.outR =  (this.in1  + this.out1*this.drive/10)/max(this.gain,0)*this.outf;
+);
+
+function valve_do(in)(
+  this.dry0=in;
+
+  this.in0=in*this.gain;
+
+  /*this.eh===1 & this.oh ===1 & this.mode==0 ? (
+    this.optimized=1;
+    this.out0 = (this.k*sin(this.in0*this.f+this.f)-1)/30;
+  ):(*/
+    this.optimized=0;
+    this.ins0=this.in0*this.f;
+    //this.out0=sin(this.ins0)*this.oh+cos(this.ins0)*this.eh-this.harm;
+    this.out0=sin(this.ins0*this.oh/this.harm)+cos(this.ins0*this.eh/this.harm)-this.harm;
+  //);
+
+  this.outL =  (this.in0  + this.out0*this.drive/10)/max(this.gain,0)*this.outf;
+);
+
+//By Witti
+function distortion2_set(power,gain,gain2,mix,mode)(
+  this.power = 100.01/power;
+  this.gain = 1-(gain*0.01*0.99);
+  this.gain2 = 10^(gain2/20)*1/this.gain;
+  this.mix = mix*0.01;
+  this.mode = mode;
+);
+
+function distortion2_do(inL inR)(
+  this.mode == 0 ? (
+    this.x = (inL+inR)*0.5;
+
+    this.s = this.x * (1/this.gain);
+    this.neg = 1;
+    (this.s<0) ? (this.neg = -1; this.s = -this.s;);
+    (this.s>1) ? this.s = 1;
+    this.s = (this.s - (this.s^this.power/this.power)) * (this.power / (this.power-1))* this.gain * this.gain2;
+    this.x = this.s * this.neg * this.mix + x * (1-this.mix);
+
+    this.outL = this.outR = this.x;
+  );
+
+  this.mode == 1 ? (
+    this.xA = inL;
+    this.xB = inR;
+
+    this.sA = this.xA * (1/this.gain);
+    this.negA = 1;
+    (this.sA<0) ? (this.negA = -1; this.sA = -this.sA;);
+    (this.sA>1) ? this.sA = 1;
+    this.sA = (this.sA - (this.sA^this.power/this.power)) * (this.power / (this.power-1))* this.gain * this.gain2;
+    this.xA = this.sA * this.negA * this.mix + this.xA * (1-this.mix);
+
+    this.sB = this.xB * (1/this.gain);
+    this.negB = 1;
+    (this.sB<0) ? (this.negB = -1; this.sB = -this.sB;);
+    (this.sB>1) ? this.sB = 1;
+    this.sB = (this.sB - (this.sB^this.power/this.power)) * (this.power / (this.power-1))* this.gain * this.gain2;
+    this.xB = this.sB * this.negB * this.mix + this.xB * (1-this.mix);
+
+    this.outL = this.xA;
+    this.outR = this.xB;
+  );
+);
+
+function distortion3_set(distortion,output,mode)(
+  this.outputVolume = output*0.01;
+  this.mode=mode;
+  this.distortion=distortion;
+);
+
+function distortion3_do(inL,inR)(
+  this.mode==0 ? (
+    this.dist = max(min((this.distortion+4)/4,26),1);
+
+    this.outL=inL*this.dist*this.outputVolume;
+    this.outR=inR*this.dist*this.outputVolume;
+
+    (this.outL>this.outputVolume) ? (this.outL=this.outputVolume;) : (this.outL<-this.outputVolume) ? (this.outL=-this.outputVolume;);
+    (this.outR>this.outputVolume) ? (this.outR=this.outputVolume;) : (this.outR<-this.outputVolume) ? (this.outR=-this.outputVolume;);
+  );
+
+  this.mode==1 ? (
+    this.dist = max(min((this.distortion+5)/5,21),1);
+
+    this.outL=inL*this.dist;
+    this.outR=inR*this.dist;
+
+    this.outL=this.outL*(12*this.outL*this.outL + 144)*this.outputVolume / (this.outL*this.outL*(this.outL*this.outL+60) + 144);
+    this.outR=this.outR*(12*this.outR*this.outR + 144)*this.outputVolume / (this.outR*this.outR*(this.outR*this.outR+60) + 144);
+  );
+
+  this.mode==2 ? (
+    this.dist = max(min((this.distortion+10)/10,11),1);
+
+    this.outL=sin((inL)*this.dist)*this.outputVolume;
+    this.outR=sin((inR)*this.dist)*this.outputVolume;
+  );
+);
+
+function tanh(x) (
+  x = exp(2*x);
+  (x - 1) / (x + 1);
+);
+
+function distortion4_init()(
+  this.histbuf=1000000;
+  this.histpos=0;
+);
+
+function distortion4_set(drive,slope,output,size)(
+  this.drive = 10^(drive/20);
+  this.gain = 10^(output/20);
+
+  this.m = 0.05+(slope*0.006);
+  this.b = (this.m-0.5)/(0.5-0.5*this.m);
+  this.c = (1/this.m)*0.5;
+
+  this.size=size;
+  this.histsize=this.size/1000*srate|0;
+);
+
+function distortion4_do(inL,inR)(
+  this.xx = inL;
+  this.yy = inR;
+
+  this.scaledvalxx = (1+this.b)*(this.xx*this.drive)/(1 + this.b*this.xx);
+  this.scaledvalyy = (1+this.b)*(this.yy*this.drive)/(1 + this.b*this.yy);
+
+  this.outL = tanh(this.scaledvalxx*this.c)*this.gain;
+  this.outR = tanh(this.scaledvalyy*this.c)*this.gain;
+
+  this.histbuf[this.histpos]=this.outL;
+  this.histbuf[this.histpos+this.histsize]=this.outR;
+
+  this.histpos+=1;
+  this.histpos >= this.histsize ? this.histpos=0;
+);
+
+function distortion4_gfx(x,y,w,h)(
+  this.gfxSize=min(w,h);
+
+  gfx_r=gfx_g=gfx_b=0.1; gfx_a=1;
+  gfx_x=x;
+  gfx_y=y;
+  gfx_rectto(x+w,y+h);
+
+  gfx_r=gfx_g=gfx_b=0.8; gfx_a=1;
+  gfx_x=x+this.gfxSize/2;
+  gfx_y=y;
+  gfx_lineto(x+this.gfxSize/2,y+this.gfxSize,0);
+  gfx_x=x;
+  gfx_y=y+this.gfxSize/2;
+  gfx_lineto(x+this.gfxSize,y+this.gfxSize/2,0);
+
+  gfx_r=0.5; gfx_g=1; gfx_b=0; gfx_a=1;
+  gfx_x=x;
+  gfx_y=y+this.gfxSize;
+  this.x = -1;
+  while(
+    this.scaledvalx = (1+this.b)*(this.x*this.drive)/(1 + this.b*this.x);
+    this.y = -(tanh(this.scaledvalx*this.c)*this.gain;);
+    gfx_lineto(x+this.x*this.gfxSize/2+this.gfxSize/2,y+this.y*this.gfxSize/2+this.gfxSize/2,1);
+    (this.x+=0.001) <= 1;
+  );
+  gfx_lineto(x+this.gfxSize-1,y,1);
+
+  this.offs=this.histpos;
+  this.gscale=this.gfxSize/this.histsize;
+  this.gbuf=this.histbuf;
+  this.gscale2=this.gfxSize/2;
+
+  gfx_r=0; gfx_g=1; gfx_b=1; gfx_a=0.5;
+
+  this.ga=0;
+  loop(this.histsize,
+    this.gv=this.gbuf[this.offs];
+    this.offs+=1;
+    this.offs>=this.histsize?this.offs=0;
+    this.gx=this.ga*this.gscale;
+    this.gy=this.gfxSize/2 - this.gv*this.gscale2;
+    this.ga ? gfx_lineto(x+this.gx,y+this.gy,0) : ( gfx_x=x+gx; gfx_y=y+gy; );
+    this.ga+=1;
+  );
+
+  this.gbuf+=this.histsize;
+);
+
+function oscilloscope_sample(size,inL,inR)(
+  this.size=size;
+  this.histsize=this.size/1000*srate|0;
+
+  this.histbuf[this.histpos]=inL;
+  this.histbuf[this.histpos+this.histsize]=inR;
+
+  this.histpos+=1;
+  this.histpos >= this.histsize ? this.histpos=0;
+);
+
+function oscilloscope_gfx(x,y,w,h)(
+  this.gfxSize=min(w,h);
+
+  gfx_r=gfx_g=gfx_b=0.1; gfx_a=1;
+  gfx_x=x;
+  gfx_y=y;
+  gfx_rectto(x+w,y+h);
+
+  this.offs=this.histpos;
+  //this.gscale=this.gfxSize/this.histsize;
+  this.gscale=w/this.histsize;
+  this.gbuf=this.histbuf;
+  this.gscale2=this.gfxSize/2;
+
+  gfx_r=0; gfx_g=1; gfx_b=1; gfx_a=0.5;
+
+  this.ga=0;
+  loop(this.histsize,
+    this.gv=this.gbuf[this.offs];
+    this.offs+=1;
+    this.offs>=this.histsize?this.offs=0;
+    this.gx=this.ga*this.gscale;
+    this.gy=this.gfxSize/2 - this.gv*this.gscale2;
+    this.ga ? gfx_lineto(x+this.gx,y+this.gy,0) : ( gfx_x=x+gx; gfx_y=y+gy; );
+    this.ga+=1;
+  );
+
+  this.gbuf+=this.histsize;
+);
+
+//From Liteon plugin pack
+function nonlinear_init()(
+  // *****************************************************************************
+  // Non-linear processor, which attempts 'dynamic' modeling of fluctuations
+  // and frequency response of basic electronic circuit.
+  // *****************************************************************************
+  /*
+  desc: Non-Linear Processor
+  slider1:30<0,100,0.01> Saturation Amount (%)
+  slider2:50<0,100,0.01> Fluctuation Amount (%)
+  slider3:16<0,32,1>Noise Floor at (Bits)
+  slider4:0<-24,24,0.01>Input (dB)
+  slider5:0<-24,24,0.01>Output (dB)
+  */
+  this.ext_noinit = 1;
+  //set limits
+  this.n = 100000;
+  this.n2 = 2*this.n;
+  this.n3 = 3*this.n;
+  this.n4 = 4*this.n;
+  //push ar0
+  this.i = 0;
+  loop(this.n,
+    this.m[this.i] = (rand(2)-1);
+    this.i += 1;
+  );
+  //push ar1
+  this.i = this.n;
+  loop(this.n,
+    this.m[this.i] = (rand(2)-1);
+    this.i += 1;
+  );
+  //push ar2
+  this.i = 2*this.n;
+  loop(this.n,
+    this.m[this.i] = (rand(2)-1);
+    this.i += 1;
+  );
+  //push ar3
+  this.i = 3*this.n;
+  loop(this.n,
+    this.m[this.i] = (rand(2)-1);
+    this.i += 1;
+  );
+  //sys vars
+  this.pi = 3.1415926535897932384626433832795;
+  this.sr = srate;
+  //lp coeff
+  this.lpk0 = 0.121;
+  this.lpk1 = -0.56;
+  //hp coeff
+  // - at 30Hz
+  this.hpk1 = exp(-188.49555921538759430775860299677/this.sr);
+  this.hpk0 = 1 - this.hpk1;
+  //nf coeff
+  // - at 2000Hz
+  this.nfk1 = exp(-12566.370614359172953850573533118/this.sr);
+  this.nfk0 = 1 - this.nfk1;
+  //ls coeff
+  // - at 300Hz
+  this.lsk0 = exp(-1884.9555921538759430775860299677/this.sr);
+  this.lsk1 = 1 - this.lsk0;
+
+  this.pdc_delay = 2;
+  this.pdc_bot_ch = 0;
+  this.pdc_top_ch = 2;
+
+  //begin
+  this.i = 0;
+);
+
+function nonlinear_set(sat,fluct,nf,input,output)(
+  //drive
+  this.drv = sat/200+0.001;
+  this.pidrv = this.pi*this.drv;
+  this.sinpidrv = 1/sin(this.pidrv);
+
+  //ranges
+  this.r1 = fluct/300;
+  this.r2 = 1/2^nf;
+
+  //ingain
+  this.ingain = 10^(input/20);
+
+  //outgain
+  this.outgain = 10^(output/20);
+);
+
+function nonlinear_block()(
+  //average amplitude
+  this.avs = (this.s0+this.s1)*0.5;
+
+  //interpolate ar2 values
+  this.tgt_min2 = this.avs*m[this.i+2*this.n]*this.r1;
+  this.d_min2 = (this.tgt_min2-this.src_min2)/samplesblock;
+  this.min2 = this.src_min2;
+  this.src_min2 = this.tgt_min2;
+
+  //interpolate ar3 values
+  this.tgt_min3 = this.avs*this.m[this.i+3*this.n]*this.r1;
+  this.d_min3 = (this.tgt_min3-this.src_min3)/samplesblock;
+  this.min3 = this.src_min3;
+  this.src_min3 = this.tgt_min3;
+
+  //average for gfx
+  this.min_av = (this.tgt_min2+this.tgt_min3)*0.5;
+);
+
+function nonlinear_do(inL,inR)(
+  this.outL=inL;
+  this.outR=inR;
+  this.outL *= this.ingain;
+  this.outR *= this.ingain;
+  this.s0 = this.outL;
+  this.s1 = this.outR;
+
+  //seeds
+  this.min0 = this.m[this.i]*this.r2;
+  this.min1 = this.m[this.i+this.n]*this.r2;
+  this.min2 += this.d_min2;
+  this.min3 += this.d_min3;
+  this.min2s = this.min2*0.05;
+  this.min3s = this.min3*0.05;
+  this.min2h = this.min2*0.005;
+  this.min3h = this.min3*0.005;
+  this.min2d = this.min2*5;
+  this.min3d = this.min3*5;
+
+  //floor reduction
+  this.nfout0 = this.nfk0*this.min0 + this.nfk1*this.nfout0;
+  this.nfout1 = this.nfk0*this.min1 + this.nfk1*this.nfout1;
+  this.inl = this.outL + this.nfout0;
+  this.inr = this.outR + this.nfout1;
+
+  //check if input
+  (this.s0 && this.s1) == 0 ? (
+    this.inl = this.outL;
+    this.inr = this.outR;
+  );
+
+  //waveshaper
+  this.wsoutl = sin(this.pidrv*this.inl)*(this.sinpidrv+this.min2d);
+  this.wsoutr = sin(this.pidrv*this.inr)*(this.sinpidrv+this.min3d);
+
+  //lp
+  this.fs2l = this.fs1l;
+  this.fs1l = this.fs0l;
+  this.fs0l = this.wsoutl;
+  this.lpoutl = (this.lpk0-this.min2)*this.fs0l + (this.lpk1+this.min3)*(this.fs1l+this.fs2l);
+  this.fs2r = this.fs1r;
+  this.fs1r = this.fs0r;
+  this.fs0r = this.wsoutr;
+  this.lpoutr = (this.lpk0-this.min3)*this.fs0r + (this.lpk1+this.min2)*(this.fs1r+this.fs2r);
+
+  //ls
+  this.ls0l = (this.lsk1-this.min2s)*this.lpoutl + (this.lsk0+this.min3s)*this.ls0l;
+  this.ls0r = (this.lsk1-this.min3s)*this.lpoutr + (this.lsk0+this.min2s)*this.ls0r;
+  this.lsoutl = this.lpoutl + this.ls0l*0.25;
+  this.lsoutr = this.lpoutr + this.ls0r*0.25;
+
+  //hp
+  this.hptmpl = (this.hpk0+this.min2h)*this.lsoutl + (this.hpk1-this.min3h)*this.hptmpl;
+  this.hptmpr = (this.hpk0+this.min3h)*this.lsoutr + (this.hpk1-this.min2h)*this.hptmpr;
+  this.fxoutl = this.lsoutl - this.hptmpl;
+  this.fxoutr = this.lsoutr - this.hptmpr;
+
+  //counter
+  this.i += 1;
+  this.i > this.n ? this.i = 0;
+
+  //output
+  this.outL = -this.fxoutl*this.outgain;
+  this.outR = -this.fxoutr*this.outgain;
+);
+
+function tubeharmonics_init()(
+  //**********************************************************
+  // Tube Harmonics:
+  // Simulates the behaviour of a vacuum tube circuit stage.
+  // Adds odd and even harmonics to the signal.
+  // Has flux and program dependent saturation.
+  //**********************************************************
+/*
+  desc: Tube Harmonics
+
+  slider1:0.3<0,1,0.001>Even Harmonics
+  slider2:0.3<0,1,0.001>Odd Harmonics
+  slider3:0.1<0,1,0.001>Fluctuation
+  slider4:0<-12,12,0.001>TS Input (dB)
+  slider5:0<-12,12,0.001>TS Output (dB)
+  slider6:0<-12,12,0.001>Output Gain (dB)
+*/
+  this.ext_noinit=1;
+  this.seed0=rand(999)|0;
+  while(this.seed1=rand(999)|0;this.seed1==this.seed0;);
+  this.sc_y0=this.sc_y1=1;
+  this.ka=0.97;
+  this.kb=1-this.ka;
+  this.lim=0.5;
+);
+
+function tubeharmonics_set(eh,oh,fluct,inputg,outputg,output)(
+  this.tgt_drve=eh*4;
+  this.drvo=oh*9;
+  this.kr=fluct;
+  this.kabs=fluct*10;
+  this.ingain=2^(inputg/6);
+  this.hgain=2^(outputg/6);
+  this.trim=2^(output/6);
+);
+
+function tubeharmonics_block()(
+  //*** interpolate parameters
+  this.d_drve=(this.tgt_drve-this.src_drve)/samplesblock;
+  this.drve=this.src_drve;
+  this.src_drve=this.tgt_drve;
+
+  this.sc_y0=sin((this.seed0+=1)*this.sc_y0);
+  this.tgt_y0=this.sc_y0*this.kr;
+  this.d_y0=(this.tgt_y0-this.src_y0)/samplesblock;
+  this.y0=this.src_y0;
+  this.src_y0=this.tgt_y0;
+
+  this.sc_y1=sin((this.seed1+=1)*this.sc_y1);
+  this.tgt_y1=this.sc_y1*this.kr;
+  this.d_y1=(this.tgt_y1-this.src_y1)/samplesblock;
+  this.y1=this.src_y1;
+  this.src_y1=this.tgt_y1;
+
+  this.tgt_abs0=abs(this.ch0)*this.kabs;
+  this.d_abs0=(this.tgt_abs0-this.src_abs0)/samplesblock;
+  this.abs0=this.src_abs0;
+  this.src_abs0=this.tgt_abs0;
+
+  this.tgt_abs1=abs(this.ch1)*this.kabs;
+  this.d_abs1=(this.tgt_abs1-this.src_abs1)/samplesblock;
+  this.abs1=this.src_abs1;
+  this.src_abs1=this.tgt_abs1;
+);
+
+function tubeharmonics_do(inL,inR)(
+  // set in gain
+  this.ch0=inL*this.ingain;
+  this.ch1=inR*this.ingain;
+
+  //interpolate
+  this.y0+=this.d_y0;
+  this.y1+=this.d_y1;
+  this.abs0+=this.d_abs0;
+  this.abs1+=this.d_abs1;
+  this.drve+=this.d_drve;
+
+  //set drive values
+  this.drve_rnd0=this.drve-this.abs0;
+  this.drve_rnd1=this.drve-this.abs1;
+  this.drvo_rnd0=this.drvo-this.abs0-this.y0;
+  this.drvo_rnd1=this.drvo-this.abs1-this.y1;
+
+  //apply harmonics
+  this.h0=sin(this.ch0)/sin(this.ch0*2)*this.drve_rnd0+(this.ch0-tan(this.ch0))*this.drvo_rnd0;
+  this.h1=sin(this.ch1)/sin(this.ch1*2)*this.drve_rnd1+(this.ch1-tan(this.ch1))*this.drvo_rnd1;
+
+  //dc filter i
+  this.dc00=this.h0-(this.dcf00=this.h0*this.kb+this.dcf00*this.ka);
+  this.dc01=this.h1-(this.dcf01=this.h1*this.kb+this.dcf01*this.ka);
+
+  //limiter
+  this.lim0=min(max(this.dc00*this.hgain,-this.lim),this.lim);
+  this.lim1=min(max(this.dc01*this.hgain,-this.lim),this.lim);
+
+  //fir filter
+  this.m01=this.m00;this.m03=this.m02;this.m05=this.m04;
+  this.fir0=0.5*(this.m05+this.m04=0.5*(this.m03+this.m02=0.5*(this.m01+this.m00=this.lim0)));
+  this.m11=this.m10;this.m13=this.m12;this.m15=this.m14;
+  this.fir1=0.5*(this.m15+this.m14=0.5*(this.m13+this.m12=0.5*(this.m11+this.m10=this.lim1)));
+
+  //dc filter ii
+  this.dc10=this.fir0-(this.dcf10=this.fir0*this.kb+this.dcf10*this.ka);
+  this.dc11=this.fir1-(this.dcf11=this.fir1*this.kb+this.dcf11*this.ka);
+
+  //sum
+  this.outL=(inL+this.dc10)*this.trim;
+  this.outR=(inR+this.dc11)*this.trim;
 );
